@@ -135,7 +135,7 @@ class TimeSeriesExtractor():
         """
         Use glob to search for matching input files.
         """
-        file_list = glob.glob(self.filename_pattern)
+        file_list = sorted(glob.glob(self.filename_pattern))
         assert len(file_list) > 0, \
             'No files found: {:}'.format(self.filename_pattern)
         self.file_list = file_list
