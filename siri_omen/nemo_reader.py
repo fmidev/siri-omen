@@ -180,12 +180,20 @@ class TimeSeriesExtractor():
                 units = ncvar.units
                 long_name = ncvar.long_name
                 timevar = f['time_centered']
+                time_array = timevar[:]
                 time_units = cf_units.Unit(timevar.units,
                                            calendar=timevar.calendar)
+                # convert to a Gregorian calendar
+                new_time_units = cf_units.Unit(
+                    'seconds since 1970-01-01 00:00:00-00',
+                    calendar='gregorian')
+                start_date = time_units.num2date(time_array[0])
+                offset = new_time_units.date2num(start_date) - time_array[0]
+                time_array += offset
                 time_dim = iris.coords.DimCoord(
-                    timevar[:],
+                    time_array,
                     standard_name=timevar.standard_name,
-                    units=time_units
+                    units=new_time_units
                 )
             # create Cube object
             lon_dim = iris.coords.DimCoord(lon, standard_name='longitude',
