@@ -172,7 +172,7 @@ class TimeSeriesExtractor():
                     if ncvar is not None:
                         break
                 assert ncvar is not None, \
-                    'Variable {:} not found in {:}'.format(var, self.filename)
+                    'Variable {:} not found in {:}'.format(var, filename)
                 if self.nn_finder.data_dim == 3:
                     values = ncvar[:, k, j, i]
                 else:
@@ -180,10 +180,12 @@ class TimeSeriesExtractor():
                 units = ncvar.units
                 long_name = ncvar.long_name
                 timevar = f['time_centered']
+                time_units = cf_units.Unit(timevar.units,
+                                           calendar=timevar.calendar)
                 time_dim = iris.coords.DimCoord(
                     timevar[:],
                     standard_name=timevar.standard_name,
-                    units=timevar.units
+                    units=time_units
                 )
             # create Cube object
             lon_dim = iris.coords.DimCoord(lon, standard_name='longitude',
