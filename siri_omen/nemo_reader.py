@@ -1,26 +1,10 @@
 """
-Read NEMO model output files into Iris cube objects.
+Tools for reading in NEMO output files.
 
-Examples:
-
-Read 3D field:
-
-cube = load_nemo_output('NORDIC_1h_grid_T_20180915-20180915.nc',
-                        'sea_water_practical_salinity')
-
-
-Extract time series from a list of output files
-
-te = TimeSeriesExtractor('NORDIC_1h_20180912_20181029_grid_T_201809*.nc')
-cube = te.extract('sea_water_practical_salinity',
-                  lon=18.9377, lat=60.5332, z=-20.0)
+All methods that are NEMO specific should be within this module.
 """
-import numpy
-import iris
+from . import *  # NOQA
 from scipy.spatial import cKDTree as KDTree
-import netCDF4
-import glob
-import collections
 
 
 class NearestNeighborFinder():
@@ -34,14 +18,31 @@ class NearestNeighborFinder():
         :arg str ncfilename: NEMO netCDF file name
         """
         self.filename = ncfilename
-        self._build_tree()
         self.data_dim = None
+        self.grid_type = None
+        self._build_tree()
 
     def _build_tree(self):
         """
         Construct nearest neighbor tree.
         """
+        def parse_grid_type(ncf):
+            """
+            Figure out which discretization the file contains, T, U or V
+
+            Reads the description attribute, e.g. "ocean T grid variables"
+
+            returns 't', 'u', or 'v'
+            """
+            desc = ncf.description
+            words = desc.split()
+            assert words[0] == 'ocean'
+            assert words [2] == 'grid'
+            return words[1].lower()
+
         with netCDF4.Dataset(self.filename) as ncf:
+            self.grid_type = parse_grid_type(ncf)
+            assert self.grid_type == 't', 'Only T grid is supported currently'
             # compute land mask
             self.data_dim = 3 if 'e3t' in ncf.variables else 2
             if self.data_dim == 3:
@@ -139,7 +140,7 @@ class TimeSeriesExtractor():
             'No files found: {:}'.format(self.filename_pattern)
         self.file_list = file_list
 
-    def extract(self, var, lon, lat, z=0.0, location_name=None, dataset_name=None):
+    def extract(self, var, lon, lat, z=0.0, location_name=None, dataset_id=None):
         """
         Reads a time series from the source file at the specified location
 
@@ -148,7 +149,7 @@ class TimeSeriesExtractor():
         :arg z: z coordinate (negative downwards)
         :kwarg location_name: human readable name of the location
             (e.g. station name)
-        :kwarg dataset_name: human readable name of the dataset
+        :kwarg dataset_id: human readable name of the dataset
             (e.g. instrument or model run identifier)
         :returns: iris Cube object of the time series
         """
@@ -202,8 +203,10 @@ class TimeSeriesExtractor():
         output = cube_list.concatenate_cube()
         if location_name is not None:
             output.attributes['location_name'] = location_name
-        if dataset_name is not None:
-            output.attributes['dataset_name'] = dataset_name
+        if dataset_id is not None:
+            output.attributes['dataset_id'] = dataset_id
+        # make sure we comply with the required metadata policy
+        assert_cube_metadata(output)
         return output
 
 
