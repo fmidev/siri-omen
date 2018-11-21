@@ -6,6 +6,7 @@ import collections
 import datetime
 import matplotlib
 import matplotlib.pyplot as plt
+import cf_units
 
 from .utility import *  # NOQA
 from .extract_timeseries import *  # NOQA
