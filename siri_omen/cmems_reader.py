@@ -62,6 +62,7 @@ def read_cmems_file(input_file, var, start_time=None, end_time=None,
 
     return output
 
+
 def import_cmems_timeseries(dataset_id,
                             search_pattern, standard_name,
                             start_time=None, end_time=None,
@@ -97,6 +98,8 @@ def import_cmems_timeseries(dataset_id,
                 key = '-'.join([location_name, depth_str])
                 cube.attributes['location_name'] = location_name
                 cube.attributes['dataset_id'] = dataset_id
+                assert_cube_metadata(cube)
+                assert_cube_valid_data(cube)
                 all_cubes[key].append(cube)
         except AssertionError as e:
             pass
