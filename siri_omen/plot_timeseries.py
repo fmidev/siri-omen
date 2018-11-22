@@ -34,7 +34,7 @@ def generate_img_filename(cube_list, root_dir=None):
     end_time = max([get_datetime(c, -1) for c in cube_list])
     date_str = '_'.join([d.strftime('%Y-%m-%d') for d in [start_time, end_time]])
 
-    imgfile = '_'.join((prefix, loc_str, var_str, date_str)) + '.png'
+    imgfile = '_'.join((prefix, loc_str, depth_str, var_str, date_str)) + '.png'
 
     if root_dir is not None:
         create_directory(root_dir)
@@ -43,7 +43,8 @@ def generate_img_filename(cube_list, root_dir=None):
     return imgfile
 
 
-def plot_timeseries(ax, cube_list, label_attr='dataset_id'):
+def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
+                    title=None):
     """
     Plots time series objects in the given axes.
 
@@ -59,6 +60,15 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id'):
         qplt.plot(c, axes=ax, label=label)
     plt.grid(True)
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))
+    if title is None:
+        loc_names = [c.attributes['location_name'] for c in cube_list]
+        dep_strs = ['{:.1f} m'.format(
+            c.coord('depth').points.mean()) for c in cube_list]
+        titles = unique([' '.join(a) for a in zip(loc_names, dep_strs)])
+        title = ', '.join(titles).strip()
+        ax.set_title(title)
+    if time_lim is not None:
+        ax.set_xlim(time_lim)
 
 
 def save_timeseries_figure(cube_list, output_dir=None, **kwargs):

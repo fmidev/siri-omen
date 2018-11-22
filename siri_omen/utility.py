@@ -36,8 +36,17 @@ def get_cube_datetime(cube, index):
 
 def get_depth_sring(cube):
     depth = cube.coord('depth').points.mean()
-    depth_str = 'd{:g}m'.format(depth)
+    depth_str = 'd{:.2f}m'.format(depth)
     return depth_str
+
+
+def get_time_summary(cube):
+    start_time = get_cube_datetime(cube, 0)
+    end_time = get_cube_datetime(cube, -1)
+    ntime = len(cube.coord('time').points)
+    out = 'Time: {:} -> {:}, {:} points'.format(start_time,
+                                                end_time, ntime)
+    return out
 
 
 def create_directory(path):
@@ -66,6 +75,14 @@ def assert_cube_metadata(cube):
     for a in attributes:
         msg = 'Cube does not have "{:}" attribute'.format(a)
         assert a in cube.attributes, msg
+
+
+def assert_cube_valid_data(cube):
+    """
+    Asserts that cube contains non nan/inf/masked data.
+    """
+    assert not cube.data.mask.all(), 'All data is masked'
+    assert numpy.isfinite(cube.data).any(), 'All data is nan or inf'
 
 
 def constrain_cube_time(cube, start_time=None, end_time=None):
