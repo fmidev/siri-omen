@@ -37,7 +37,7 @@ class NearestNeighborFinder():
             desc = ncf.description
             words = desc.split()
             assert words[0] == 'ocean'
-            assert words [2] == 'grid'
+            assert words[2] == 'grid'
             return words[1].lower()
 
         with netCDF4.Dataset(self.filename) as ncf:
@@ -140,7 +140,8 @@ class TimeSeriesExtractor():
             'No files found: {:}'.format(self.filename_pattern)
         self.file_list = file_list
 
-    def extract(self, var, lon, lat, z=0.0, location_name=None, dataset_id=None):
+    def extract(self, var, lon, lat, z=0.0,
+                location_name=None, dataset_id=None):
         """
         Reads a time series from the source file at the specified location
 
@@ -164,9 +165,7 @@ class TimeSeriesExtractor():
                 for name in ['standard_name', 'long_name']:
                     for vname in f.variables:
                         v = f[vname]
-                        if (hasattr(v, 'standard_name')
-                                and getattr(v, 'standard_name') == var):
-                            # print('Found variable {:}: {:}'.format(var, vname))
+                        if (hasattr(v, name) and getattr(v, name) == var):
                             ncvar = v
                             break
                     if ncvar is not None:

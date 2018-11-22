@@ -3,7 +3,7 @@ CMEMS read example
 
 Reads CMEMS mooring netCDF files and converts them into timeseries files.
 """
-from siri_omen import *
+from siri_omen import *  # NOQA
 
 search_pattern = '2018*/*.nc'
 dataset_id = 'obs'
