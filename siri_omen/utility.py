@@ -10,7 +10,7 @@ from collections import OrderedDict
 # map standard_name attributes to values used in NEMO output files
 map_var_name = {
     'water_surface_height_above_reference_datum': 'sea_surface_height_above_geoid',
-
+    'sea_water_temperature': 'sea_water_potential_temperature',
 }
 
 map_var_short_name = {
@@ -18,6 +18,7 @@ map_var_short_name = {
     'sea_surface_height_above_geoid': 'ssh',
     'sea_water_practical_salinity': 'salt',
     'sea_water_temperature': 'temp',
+    'sea_water_potential_temperature': 'temp',
 }
 
 
