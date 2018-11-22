@@ -93,8 +93,7 @@ def import_cmems_timeseries(dataset_id,
                                         verbose=verbose)
             for cube in cube_list:
                 location_name = cube.attributes['site_code']
-                depth = cube.coord('depth').points[0]
-                depth_str = 'd{:}'.format(depth)
+                depth_str = get_depth_sring(cube)
                 key = '-'.join([location_name, depth_str])
                 cube.attributes['location_name'] = location_name
                 cube.attributes['dataset_id'] = dataset_id

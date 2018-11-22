@@ -34,6 +34,12 @@ def get_cube_datetime(cube, index):
     return time.units.num2date(time.points[index])
 
 
+def get_depth_sring(cube):
+    depth = cube.coord('depth').points.mean()
+    depth_str = 'd{:g}m'.format(depth)
+    return depth_str
+
+
 def create_directory(path):
     """
     Create directory in the file system.
@@ -112,8 +118,7 @@ def gen_filename(cube, root_dir='obs'):
     prefix = 'ts'
     location_name = cube.attributes['location_name']
     dataset_id = cube.attributes['dataset_id']
-    depth = cube.coord('depth').points.mean()
-    depth_str = 'd{:g}m'.format(depth)
+    depth_str = get_depth_sring(cube)
     var = cube.standard_name
     var = map_var_short_name[var]
     start_time = get_cube_datetime(cube, 0)

@@ -24,6 +24,8 @@ def generate_img_filename(cube_list, root_dir=None):
                 for c in cube_list])
     )
 
+    depth_str = '-'.join(unique([get_depth_sring(c) for c in cube_list]))
+
     def get_datetime(cube, index):
         t = cube.coord('time')
         return t.units.num2date(t.points[index])
