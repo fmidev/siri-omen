@@ -50,21 +50,7 @@ def check_time_overlap(cube_list, min_overlap_days=1.0):
     return overlap_days >= min_overlap_days
 
 
-def batch_plot_timeseries(cube_dict_list, imgdir='plots'):
-    # find pairs
-    keys = [set(d.keys()) for d in cube_dict_list]
-    common_keys = set.intersection(*keys)
-
-    paired_cubes = defaultdict(list)
-    for key in common_keys:
-        cube_list = []
-        for s in cube_dict_list:
-            cube_list.append(s[key])
-        if check_time_overlap(cube_list):
-            paired_cubes[key] = cube_list
-
-    # make plots
-
+def batch_plot_timeseries(paired_cubes, imgdir='plots'):
     offset = datetime.timedelta(days=1)
     start_time = datetime.datetime(2018, 9, 1) - offset
     end_time = datetime.datetime(2018, 10, 30) + offset
@@ -90,20 +76,45 @@ model_standard_names = {
 }
 
 
-def model_obs_comparison(var_short_name):
-
+def read_obs_dataset(var_short_name):
     search_pattern = 'obs/ts_*_{var:}_*.nc'.format(var=var_short_name)
     var = obs_standard_names[var_short_name]
-    obs_cubes = read_timeseries_files(search_pattern, var)
+    cubes = read_timeseries_files(search_pattern, var)
+    return cubes
 
+
+def read_mod_dataset(var_short_name):
     search_pattern = 'nemo4-run013/ts_*_{var:}_*.nc'.format(var=var_short_name)
     var = model_standard_names[var_short_name]
-    mod_cubes = read_timeseries_files(search_pattern, var)
+    cubes = read_timeseries_files(search_pattern, var)
+    return cubes
+
+
+def construct_paired_dataset(cube_dict_list):
+    # find pairs
+    keys = [set(d.keys()) for d in cube_dict_list]
+    common_keys = set.intersection(*keys)
+
+    paired_cubes = defaultdict(list)
+    for key in common_keys:
+        cube_list = []
+        for s in cube_dict_list:
+            cube_list.append(s[key])
+        if check_time_overlap(cube_list):
+            paired_cubes[key] = cube_list
+    return paired_cubes
+
+
+def plot_model_obs_comparison(var_short_name):
+
+    obs_cubes = read_obs_dataset(var_short_name)
+    mod_cubes = read_mod_dataset(var_short_name)
+    paired_cubes = construct_paired_dataset([obs_cubes, mod_cubes])
 
     img_root_dir = 'plots'
     imgdir = os.path.join(img_root_dir, var_short_name)
-    batch_plot_timeseries([obs_cubes, mod_cubes], imgdir=imgdir)
+    batch_plot_timeseries(paired_cubes, imgdir=imgdir)
 
-model_obs_comparison('ssh')
-model_obs_comparison('temp')
-model_obs_comparison('salt')
+plot_model_obs_comparison('ssh')
+plot_model_obs_comparison('temp')
+plot_model_obs_comparison('salt')
