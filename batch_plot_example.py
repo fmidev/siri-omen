@@ -1,7 +1,7 @@
 """
 Example of batch plotting time series
 """
-from siri_omen import *
+from siri_omen import *  # NOQA
 from collections import defaultdict
 
 
@@ -30,9 +30,8 @@ def read_timeseries_files(search_pattern, var):
             assert_cube_valid_data(cube)
             key = gen_unique_key(cube)
             output[key] = cube
-        except AssertionError as e:
+        except AssertionError:
             pass
-
 
     return output
 
@@ -46,7 +45,7 @@ def get_time_overlap(cube_list):
 
 def check_time_overlap(cube_list, min_overlap_days=1.0):
     overlap = get_time_overlap(cube_list)
-    overlap_days = overlap.total_seconds()/(24*3600.)
+    overlap_days = overlap.total_seconds() / (24 * 3600.)
     return overlap_days >= min_overlap_days
 
 
@@ -114,6 +113,7 @@ def plot_model_obs_comparison(var_short_name):
     img_root_dir = 'plots'
     imgdir = os.path.join(img_root_dir, var_short_name)
     batch_plot_timeseries(paired_cubes, imgdir=imgdir)
+
 
 plot_model_obs_comparison('ssh')
 plot_model_obs_comparison('temp')

@@ -1,7 +1,7 @@
 """
 Batch extract example
 """
-from siri_omen import *
+from siri_omen import *  # NOQA
 
 run_id = 'nemo4-run013'
 

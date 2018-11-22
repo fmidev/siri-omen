@@ -9,7 +9,8 @@ from collections import OrderedDict
 
 # map standard_name attributes to values used in NEMO output files
 map_var_name = {
-    'water_surface_height_above_reference_datum': 'sea_surface_height_above_geoid',
+    'water_surface_height_above_reference_datum':
+        'sea_surface_height_above_geoid',
     'sea_water_temperature': 'sea_water_potential_temperature',
 }
 
@@ -117,7 +118,7 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     if ndims == 1:
         slice_obj = tix
     else:
-        slice_obj = [slice(None, None, None)]*ndims
+        slice_obj = [slice(None, None, None)] * ndims
         slice_obj[time_dim_index] = tix
 
     # slice me
@@ -142,7 +143,8 @@ def gen_filename(cube, root_dir='obs'):
     end_time = get_cube_datetime(cube, -1)
     date_str = '_'.join([d.strftime('%Y-%m-%d')
                          for d in [start_time, end_time]])
-    fname = '_'.join([prefix, location_name, depth_str, dataset_id, var, date_str]) + '.nc'
+    parts = [prefix, location_name, depth_str, dataset_id, var, date_str]
+    fname = '_'.join(parts) + '.nc'
     if root_dir is not None:
         fname = os.path.join(root_dir, fname)
     return fname

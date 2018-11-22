@@ -1,7 +1,7 @@
 """
 iris NEMO examples
 """
-from siri_omen import *
+from siri_omen import *  # NOQA
 
 # extract time series with correct location and dataset metadata
 te = TimeSeriesExtractor('NORDIC_1h_20180901_20181029_grid_T_201809*.nc')

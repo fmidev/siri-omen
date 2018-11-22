@@ -20,7 +20,7 @@ def _get_depth_coord(input_file, var):
     depth = cube.data.mean(axis=0)
     valid_mask = ~depth.mask
     if numpy.isscalar(valid_mask):
-        valid_mask = numpy.ones_like(depth, dtype=bool)*valid_mask
+        valid_mask = numpy.ones_like(depth, dtype=bool) * valid_mask
     depth = depth[valid_mask]
     depth_coord = iris.coords.DimCoord(depth,
                                        standard_name=cube.standard_name,
@@ -101,7 +101,7 @@ def import_cmems_timeseries(dataset_id,
                 assert_cube_metadata(cube)
                 assert_cube_valid_data(cube)
                 all_cubes[key].append(cube)
-        except AssertionError as e:
+        except AssertionError:
             pass
 
     # concatenate time dimension in all found files
@@ -116,4 +116,3 @@ def import_cmems_timeseries(dataset_id,
             print(e)
 
         save_cube(cube, root_dir=outputdir)
-

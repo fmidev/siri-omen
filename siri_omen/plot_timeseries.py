@@ -20,7 +20,7 @@ def generate_img_filename(cube_list, root_dir=None):
     )
     loc_str = '-'.join(
         unique([map_var_short_name.get(c.attributes['location_name'],
-                                   c.attributes['location_name'])
+                                       c.attributes['location_name'])
                 for c in cube_list])
     )
 
@@ -32,9 +32,11 @@ def generate_img_filename(cube_list, root_dir=None):
 
     start_time = min([get_datetime(c, 0) for c in cube_list])
     end_time = max([get_datetime(c, -1) for c in cube_list])
-    date_str = '_'.join([d.strftime('%Y-%m-%d') for d in [start_time, end_time]])
+    date_str = '_'.join(
+        [d.strftime('%Y-%m-%d') for d in [start_time, end_time]])
 
-    imgfile = '_'.join((prefix, loc_str, depth_str, var_str, date_str)) + '.png'
+    imgfile = '_'.join((prefix, loc_str, depth_str, var_str, date_str))
+    imgfile += '.png'
 
     if root_dir is not None:
         create_directory(root_dir)

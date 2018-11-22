@@ -1,12 +1,12 @@
-import iris
-import netCDF4
-import numpy
-import glob
-import collections
-import datetime
-import matplotlib
-import matplotlib.pyplot as plt
-import cf_units
+import iris  # NOQA
+import netCDF4  # NOQA
+import numpy  # NOQA
+import glob  # NOQA
+import collections  # NOQA
+import datetime  # NOQA
+import matplotlib  # NOQA
+import matplotlib.pyplot as plt  # NOQA
+import cf_units  # NOQA
 
 from .utility import *  # NOQA
 from .extract_timeseries import *  # NOQA
