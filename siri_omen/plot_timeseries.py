@@ -8,7 +8,31 @@ import iris.quickplot as qplt
 import os
 
 
-def generate_img_filename(cube_list, root_dir=None):
+def get_common_time_overlap(cube_list, mode='union'):
+    """
+    Find a common overlapping time interval of the cubes.
+
+    :arg cube_list: list of cubes
+    :arg mode: either 'union' or 'intersection'. If 'intersection' will return
+    the time interval in which all cubes have data. If 'union' will find the
+    time span that contains all the data.
+    """
+
+    def get_datetime(cube, index):
+        t = cube.coord('time')
+        return t.units.num2date(t.points[index])
+
+    st_op = min if mode == 'union' else max
+    et_op = max if mode == 'union' else min
+    start_time = st_op([get_datetime(c, 0) for c in cube_list])
+    end_time = et_op([get_datetime(c, -1) for c in cube_list])
+    assert end_time > start_time, 'Could not find overlapping time stamps'
+    return start_time, end_time
+
+
+def generate_img_filename(cube_list, root_dir=None,
+                          start_time=None, end_time=None,
+                          time_extent='union'):
     """
     Generate a canonical name for a timeseries image file.
     """
@@ -26,12 +50,8 @@ def generate_img_filename(cube_list, root_dir=None):
 
     depth_str = '-'.join(unique([get_depth_sring(c) for c in cube_list]))
 
-    def get_datetime(cube, index):
-        t = cube.coord('time')
-        return t.units.num2date(t.points[index])
-
-    start_time = min([get_datetime(c, 0) for c in cube_list])
-    end_time = max([get_datetime(c, -1) for c in cube_list])
+    if start_time is None and end_time is None:
+        start_time, end_time = get_common_time_overlap(cube_list, time_extent)
     date_str = '_'.join(
         [d.strftime('%Y-%m-%d') for d in [start_time, end_time]])
 
@@ -46,7 +66,8 @@ def generate_img_filename(cube_list, root_dir=None):
 
 
 def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
-                    title=None):
+                    title=None, time_extent=None,
+                    start_time=None, end_time=None, **kwargs):
     """
     Plots time series objects in the given axes.
 
@@ -59,7 +80,14 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
 
     for c in cube_list:
         label = get_label(c, label_attr)
-        qplt.plot(c, axes=ax, label=label)
+        if isinstance(c.data, numpy.ma.MaskedArray) \
+                and numpy.all(c.data.mask):
+            # if all data is bad, skip
+            continue
+        qplt.plot(c, axes=ax, label=label, **kwargs)
+    if start_time is None and end_time is None and time_extent is not None:
+        start_time, end_time = get_common_time_overlap(cube_list, time_extent)
+    ax.set_xlim(start_time, end_time)
     plt.grid(True)
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))
     if title is None:
@@ -80,9 +108,15 @@ def save_timeseries_figure(cube_list, output_dir=None, **kwargs):
     fig = plt.figure(figsize=(12, 5))
     ax = fig.add_subplot(111)
 
-    plot_timeseries(ax, cube_list, **kwargs)
+    time_extent = kwargs.pop('time_extent', None)
+    start_time = kwargs.pop('start_time', None)
+    end_time = kwargs.pop('end_time', None)
+    plot_timeseries(ax, cube_list, time_extent=time_extent,
+                    start_time=start_time, end_time=end_time, **kwargs)
 
-    imgfile = generate_img_filename(cube_list, root_dir=output_dir)
+    imgfile = generate_img_filename(cube_list, root_dir=output_dir,
+                                    start_time=start_time, end_time=end_time,
+                                    time_extent=time_extent)
 
     print('Saving image {:}'.format(imgfile))
     fig.savefig(imgfile, dpi=200, bbox_inches='tight')
