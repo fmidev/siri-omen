@@ -6,15 +6,6 @@ from collections import defaultdict
 from iris.experimental.equalise_cubes import equalise_attributes
 
 
-def _load_cube(input_file, var):
-    cube_list = iris.load(input_file, var)
-    assert len(cube_list) > 0, 'Field "{:}" not found in {:}'.format(
-        var, input_file)
-    assert len(cube_list) == 1, 'Multiple files found'
-    cube = cube_list[0]
-    return cube
-
-
 def _get_depth_coord(input_file, var):
     cube = _load_cube(input_file, var)
     depth = cube.data.mean(axis=0)
@@ -103,6 +94,9 @@ def import_cmems_timeseries(dataset_id,
                 all_cubes[key].append(cube)
         except AssertionError:
             pass
+        except ValueError as e:
+            print('Reading file {:} failed.'.format(f))
+            print(e)
 
     # concatenate time dimension in all found files
     for k in all_cubes:

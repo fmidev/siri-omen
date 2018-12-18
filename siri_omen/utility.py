@@ -145,9 +145,20 @@ def gen_filename(cube, root_dir='obs'):
                          for d in [start_time, end_time]])
     parts = [prefix, location_name, depth_str, dataset_id, var, date_str]
     fname = '_'.join(parts) + '.nc'
-    if root_dir is not None:
-        fname = os.path.join(root_dir, fname)
+    dir = root_dir if root_dir is not None else ''
+    dir = os.path.join(dir, location_name, var)
+    create_directory(dir)
+    fname = os.path.join(dir, fname)
     return fname
+
+
+def load_cube(input_file, var):
+    cube_list = iris.load(input_file, var)
+    assert len(cube_list) > 0, 'Field "{:}" not found in {:}'.format(
+        var, input_file)
+    assert len(cube_list) == 1, 'Multiple files found'
+    cube = cube_list[0]
+    return cube
 
 
 def save_cube(cube, root_dir=None, fname=None):
