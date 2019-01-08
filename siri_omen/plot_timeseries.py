@@ -18,14 +18,10 @@ def get_common_time_overlap(cube_list, mode='union'):
     time span that contains all the data.
     """
 
-    def get_datetime(cube, index):
-        t = cube.coord('time')
-        return t.units.num2date(t.points[index])
-
     st_op = min if mode == 'union' else max
     et_op = max if mode == 'union' else min
-    start_time = st_op([get_datetime(c, 0) for c in cube_list])
-    end_time = et_op([get_datetime(c, -1) for c in cube_list])
+    start_time = st_op([get_cube_datetime(c, 0) for c in cube_list])
+    end_time = et_op([get_cube_datetime(c, -1) for c in cube_list])
     assert end_time > start_time, 'Could not find overlapping time stamps'
     return start_time, end_time
 
