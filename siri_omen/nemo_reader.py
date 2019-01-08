@@ -9,6 +9,22 @@ from iris.experimental.equalise_cubes import equalise_attributes
 import cf_units
 
 
+map_nemo_standard_name = {
+    'sea_water_temperature': 'sea_water_potential_temperature',
+    'sea_water_practical_salinity': 'sea_water_practical_salinity',
+    'water_surface_height_above_reference_datum': 'sea_surface_height_above_geoid',
+}
+
+# reverse map: standard_name -> short_name
+map_nemo_sname_to_standard = dict((t[1], t[0]) for t in map_nemo_standard_name.items())
+
+# declare correct netcdf variable name for cases where standard_name is
+# insufficient to find an unique time series
+nemo_ncvar_name = {
+    'slev': 'SSH_inst',
+}
+
+
 class NearestNeighborFinder():
     """
     Nearest neighbor search object for NEMO netCDF output files.
@@ -186,7 +202,13 @@ class NemoStationFileReader(NemoFileReader):
                     meta['valid_mask'] = valid_mask
                     meta['files'] = []
                     self.station_metadata[key] = meta
-                meta['files'].append(f)
+                self.station_metadata[key]['files'].append(f)
+        if self.verbose:
+            print('Found stations:')
+            for key in self.station_metadata:
+                print(key)
+                for f in self.station_metadata[key]['files']:
+                    print('    {:}'.format(f))
 
     def get_station_metadata(self):
         return self.station_metadata
@@ -218,6 +240,8 @@ class NemoStationFileReader(NemoFileReader):
                     and numpy.all(cube.data.mask):
                 # if all data is bad, skip
                 continue
+            # use correct standard name
+            cube.standard_name = map_nemo_sname_to_standard[cube.standard_name]
             dataset[key] = cube
         return dataset
 
@@ -463,3 +487,35 @@ def load_nemo_output(ncfile, standard_name, var_name=None, **kwargs):
     for c in cube.coords():
         c.points
     return cube
+
+
+def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
+    """
+    Reads Nemo4.0 station files and stores as contiquous time series
+
+    :arg str search_pattern: pattern where stations files are located, e.g.,
+        '../run_201*/station_*.nc'
+    :arg str dataset_id: human readable label for the dataset, e.g.,
+        'myrun002'
+    :arg var_list: list of variables to store, e.g. ['temp', 'psal', 'slev']
+    """
+
+    nreader = NemoStationFileReader(search_pattern,
+                                                dataset_id=dataset_id,
+                                                verbose=True)
+    for var in var_list:
+        nemo_var = map_nemo_standard_name[map_var_standard_name[var]]
+        var_name = nemo_ncvar_name.get(var)
+        dataset = nreader.get_dataset(nemo_var, var_name=var_name)
+
+        for key in dataset:
+            cube = dataset[key]
+
+            coords = [c.name() for c in cube.coords()]
+            if 'depth' not in coords:
+                # assume already at correct depth
+                dep_dim = iris.coords.DimCoord(0.0,
+                                            standard_name='depth',
+                                            units='m')
+                cube.add_aux_coord(dep_dim, None)
+            save_cube(cube)
