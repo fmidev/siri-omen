@@ -18,6 +18,7 @@ map_var_short_name = {
     'water_surface_height_above_reference_datum': 'ssh',
     'sea_surface_height_above_geoid': 'ssh',
     'sea_water_practical_salinity': 'salt',
+    'sea_water_salinity': 'salt',
     'sea_water_temperature': 'temp',
     'sea_water_potential_temperature': 'temp',
 }
@@ -82,7 +83,8 @@ def assert_cube_valid_data(cube):
     """
     Asserts that cube contains non nan/inf/masked data.
     """
-    assert not cube.data.mask.all(), 'All data is masked'
+    if numpy.ma.is_masked(cube.data):
+        assert not cube.data.mask.all(), 'All data is masked'
     assert numpy.isfinite(cube.data).any(), 'All data is nan or inf'
 
 
@@ -133,20 +135,46 @@ def gen_filename(cube, root_dir='obs'):
     File name is generated from the cube metadata.
     """
     assert_cube_metadata(cube)
-    prefix = 'ts'
+    ndepth = 1
+    coords = [c.name() for c in cube.coords()]
+    if 'depth' in coords:
+        ndepth = len(cube.coord('depth').points)
+    ntime = len(cube.coord('time').points)
+    if ndepth == 1:
+        datatype = 'timeseries'
+    elif ndepth > 1 and ntime == 1:
+        datatype = 'profile'
+    elif ndepth > 1 and ntime > 1:
+        datatype = 'timeprofile'
+    else:
+        raise NotImplementedError('Unknown cube data type')
+
+    type_abbrev = {
+        'timeseries': 'ts',
+        'profile': 'prof',
+        'timeprofile': 'tprof',
+    }
+    prefix = 'ts' if datatype == 'timeseries' else 'vprof'
+
     location_name = cube.attributes['location_name']
     dataset_id = cube.attributes['dataset_id']
-    depth_str = get_depth_sring(cube)
     var = cube.standard_name
     var = map_var_short_name[var]
     start_time = get_cube_datetime(cube, 0)
     end_time = get_cube_datetime(cube, -1)
-    date_str = '_'.join([d.strftime('%Y-%m-%d')
-                         for d in [start_time, end_time]])
-    parts = [prefix, location_name, depth_str, dataset_id, var, date_str]
+    if ntime == 1:
+        date_str = start_time.strftime('%Y-%m-%d')
+    else:
+        date_str = '_'.join([d.strftime('%Y-%m-%d')
+                             for d in [start_time, end_time]])
+    if datatype in ['profile', 'timeprofile']:
+        parts = [prefix, location_name, dataset_id, var, date_str]
+    else:
+        depth_str = get_depth_sring(cube)
+        parts = [prefix, location_name, depth_str, dataset_id, var, date_str]
     fname = '_'.join(parts) + '.nc'
     dir = root_dir if root_dir is not None else ''
-    dir = os.path.join(dir, location_name, var)
+    dir = os.path.join(dir, datatype, location_name, var)
     create_directory(dir)
     fname = os.path.join(dir, fname)
     return fname
