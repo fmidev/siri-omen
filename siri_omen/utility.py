@@ -7,20 +7,32 @@ import numpy
 from collections import OrderedDict
 
 
-# map standard_name attributes to values used in NEMO output files
-map_var_name = {
-    'water_surface_height_above_reference_datum':
-        'sea_surface_height_above_geoid',
-    'sea_water_temperature': 'sea_water_potential_temperature',
-}
+# standard names for all used variables
+# based on CF standard and oceanSITES short variable names
+map_var_standard_name = {
+    'airt': 'air_temperature',
+    'caph': 'air_pressure',
+    'depth': 'depth',
+    'hcsp': 'sea_water_speed',
+    'pres': 'sea_water_pressure',
+    'psal': 'sea_water_practical_salinity',
+    'temp': 'sea_water_temperature',
+    'ucur': 'eastward_sea_water_velocity',
+    'uwnd': 'eastward_wind',
+    'vcur': 'northward_sea_water_velocity',
+    'vwnd': 'northward_wind',
+    'wdir': 'wind_to_direction',
+    'wspd': 'wind_speed',
+    'slev': 'water_surface_height_above_reference_datum',
+    }
 
-map_var_short_name = {
-    'water_surface_height_above_reference_datum': 'ssh',
-    'sea_surface_height_above_geoid': 'ssh',
-    'sea_water_practical_salinity': 'salt',
-    'sea_water_salinity': 'salt',
-    'sea_water_temperature': 'temp',
-    'sea_water_potential_temperature': 'temp',
+# reverse map: standard_name -> short_name
+map_var_short_name = dict((t[1], t[0]) for t in map_var_standard_name.items())
+
+# map standard name to known synonyms
+standard_name_synonyms = {
+    'water_surface_height_above_reference_datum': 'sea_surface_height_above_geoid',
+    'sea_water_temperature': 'sea_water_potential_temperature',
 }
 
 
@@ -174,7 +186,7 @@ def gen_filename(cube, root_dir='obs'):
         parts = [prefix, location_name, depth_str, dataset_id, var, date_str]
     fname = '_'.join(parts) + '.nc'
     dir = root_dir if root_dir is not None else ''
-    dir = os.path.join(dir, datatype, location_name, var)
+    dir = os.path.join(dataset_id, dir, datatype, location_name, var)
     create_directory(dir)
     fname = os.path.join(dir, fname)
     return fname
