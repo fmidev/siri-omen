@@ -7,16 +7,18 @@ from iris.experimental.equalise_cubes import equalise_attributes
 
 
 def _get_depth_coord(input_file, var):
-    cube = _load_cube(input_file, var)
+    cube = load_cube(input_file, var)
     depth = cube.data.mean(axis=0)
-    valid_mask = ~depth.mask
-    if numpy.isscalar(valid_mask):
-        valid_mask = numpy.ones_like(depth, dtype=bool) * valid_mask
-    depth = depth[valid_mask]
+    valid_mask = None
+    if numpy.ma.is_masked(depth):
+        valid_mask = ~depth.mask
+        if numpy.isscalar(valid_mask):
+            valid_mask = numpy.ones_like(depth, dtype=bool) * valid_mask
+        depth = depth[valid_mask]
     depth_coord = iris.coords.DimCoord(depth,
                                        standard_name=cube.standard_name,
                                        units=cube.units)
-    return valid_mask, depth_coord
+    return depth_coord, valid_mask
 
 
 def read_cmems_file(input_file, var, start_time=None, end_time=None,
@@ -26,7 +28,18 @@ def read_cmems_file(input_file, var, start_time=None, end_time=None,
     """
     if verbose:
         print('Reading file {:}'.format(input_file))
-    cube = _load_cube(input_file, var)
+    cube = load_cube(input_file, var)
+
+    # try loading quality flags
+    nc_varname = cube.var_name
+    qc_cube_list = iris.load(input_file, 'quality flag')
+    for c in qc_cube_list:
+        if c.var_name == nc_varname + '_QC':
+            good_qc_flag = 1
+            valid_mask = numpy.min(c.data == good_qc_flag, axis=1)
+            assert valid_mask.any(), 'All values flagged bad'
+            # filter bad values
+            cube = cube[valid_mask, :]
 
     location_name = cube.attributes['site_code']
     assert not location_name.isspace(), \
@@ -42,8 +55,9 @@ def read_cmems_file(input_file, var, start_time=None, end_time=None,
     cube.add_aux_coord(lat_coord)
     cube.add_aux_coord(lon_coord)
 
-    valid_mask, depth_coord = _get_depth_coord(input_file, 'depth')
-    cube = cube[:, valid_mask]
+    depth_coord, valid_mask = _get_depth_coord(input_file, 'depth')
+    if valid_mask is not None:
+        cube = cube[:, valid_mask]
     cube.add_dim_coord(depth_coord, 1)
 
     # cut each depth to separate cube
