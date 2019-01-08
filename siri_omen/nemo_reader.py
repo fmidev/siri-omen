@@ -191,7 +191,7 @@ class NemoStationFileReader(NemoFileReader):
     def get_station_metadata(self):
         return self.station_metadata
 
-    def get_dataset(self, variable):
+    def get_dataset(self, variable, var_name=None):
         """
         Reads all files to cubes and concatenates them in time
         """
@@ -204,7 +204,10 @@ class NemoStationFileReader(NemoFileReader):
             for f in meta['files']:
                 if self.verbose:
                     print('Loading {:}'.format(f))
-                c = load_nemo_output(f, variable)
+                kw = {}
+                if var_name is not None:
+                    kw['var_name'] = var_name
+                c = load_nemo_output(f, variable, **kw)
                 cube_list.append(c)
             equalise_attributes(cube_list)
             cube = cube_list.concatenate_cube()
@@ -435,7 +438,7 @@ def fix_cube_coordinates(cube):
     cube.add_dim_coord(time_dim, time_ix)
 
 
-def load_nemo_output(ncfile, standard_name):
+def load_nemo_output(ncfile, standard_name, var_name=None, **kwargs):
     """
     Load a field identified with standard_name from NEMO output file.
 
@@ -445,9 +448,13 @@ def load_nemo_output(ncfile, standard_name):
     :arg standard_name: CF standard_name of a field to read
     :returns: an iris Cube object
     """
-    cube_list = iris.load(ncfile, standard_name)
+    cube_list = iris.load(ncfile, standard_name, **kwargs)
     assert len(cube_list) > 0, 'No field {:} found in {:}'.format(
         standard_name, ncfile)
+    if var_name is not None:
+        new_list = [c for c in cube_list if c.var_name == var_name]
+        cube_list = iris.cube.CubeList(new_list)
+
     assert len(cube_list) == 1, 'Multiple fields found'
     cube = cube_list[0]
     fix_cube_coordinates(cube)
