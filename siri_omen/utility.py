@@ -161,6 +161,35 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     return new_cube
 
 
+def get_cube_datatype(cube):
+    """
+    Detect cube datatype.
+
+    Supported datatypes are:
+    point       - ()
+    timeseries  - (time)
+    profile     - (depth)
+    timeprofile - (time, depth)
+    """
+    coords = [c.name() for c in cube.coords()]
+    ncoords = len(coords)
+    has_depth = 'depth' in coords
+    has_time = 'time' in coords
+    if has_depth:
+        ndepth = len(cube.coord('depth').points)
+    if has_time:
+        ntime = len(cube.coord('time').points)
+    if (has_time and ntime > 1) and (has_depth and ndepth == 1):
+        datatype = 'timeseries'
+    elif (has_time and ntime == 1) and (has_depth and ndepth > 1):
+        datatype = 'profile'
+    elif (has_time and ntime > 1) and (has_depth and ndepth > 1):
+        datatype = 'timeprofile'
+    else:
+        raise NotImplementedError('Unknown cube data type')
+    return datatype
+
+
 def drop_singleton_dims(cube):
     """
     Extract all coordinates that have only one value.
@@ -227,9 +256,19 @@ def gen_filename(cube, root_dir='obs'):
 
 
 def load_cube(input_file, var):
-    cube_list = iris.load(input_file, var)
+    """
+    Load netcdf file to a cube object
+
+    :arg str input_file: netcdf file name
+    :arg str var: standard_name of the variable to read. Alternatively can be
+        a shortname, e.g. 'temp' or 'psal'
+    """
+    # if short name convert to standard_name
+    _var = map_var_standard_name.get(var, var)
+
+    cube_list = iris.load(input_file, _var)
     assert len(cube_list) > 0, 'Field "{:}" not found in {:}'.format(
-        var, input_file)
+        _var, input_file)
     assert len(cube_list) == 1, 'Multiple files found'
     cube = cube_list[0]
     return cube
