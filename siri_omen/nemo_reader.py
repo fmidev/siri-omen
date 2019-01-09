@@ -12,11 +12,13 @@ import cf_units
 map_nemo_standard_name = {
     'sea_water_temperature': 'sea_water_potential_temperature',
     'sea_water_practical_salinity': 'sea_water_practical_salinity',
-    'water_surface_height_above_reference_datum': 'sea_surface_height_above_geoid',
+    'water_surface_height_above_reference_datum':
+        'sea_surface_height_above_geoid',
 }
 
 # reverse map: standard_name -> short_name
-map_nemo_sname_to_standard = dict((t[1], t[0]) for t in map_nemo_standard_name.items())
+map_nemo_sname_to_standard = dict((t[1], t[0]) for
+                                  t in map_nemo_standard_name.items())
 
 # declare correct netcdf variable name for cases where standard_name is
 # insufficient to find an unique time series
@@ -400,7 +402,7 @@ def fix_cube_coordinates(cube):
         if len(array) == target_len + 1:
             # this should not happen
             # try to compute cell means
-            array = 0.5*(array[1:] + array[:-1])
+            array = 0.5 * (array[1:] + array[:-1])
 
         assert len(array) == target_len
         dim_coord = iris.coords.DimCoord(array, standard_name=name,
@@ -450,8 +452,8 @@ def fix_cube_coordinates(cube):
     start_date = time_units.num2date(time_array[0])
 
     new_time_units = cf_units.Unit(
-                        'seconds since 1970-01-01 00:00:00-00',
-                        calendar='gregorian')
+        'seconds since 1970-01-01 00:00:00-00',
+        calendar='gregorian')
 
     offset = new_time_units.date2num(start_date) - time_array[0]
     time_array += offset
@@ -502,8 +504,8 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
     """
 
     nreader = NemoStationFileReader(search_pattern,
-                                                dataset_id=dataset_id,
-                                                verbose=True)
+                                    dataset_id=dataset_id,
+                                    verbose=True)
     for var in var_list:
         nemo_var = map_nemo_standard_name[map_var_standard_name[var]]
         var_name = nemo_ncvar_name.get(var)
@@ -516,7 +518,7 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
             if 'depth' not in coords:
                 # assume already at correct depth
                 dep_dim = iris.coords.DimCoord(0.0,
-                                            standard_name='depth',
-                                            units='m')
+                                               standard_name='depth',
+                                               units='m')
                 cube.add_aux_coord(dep_dim, None)
             save_cube(cube)
