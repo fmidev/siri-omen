@@ -17,6 +17,7 @@ from .plot_profile import *  # NOQA
 
 from . import nemo_reader
 from . import cmems_reader
+from . import ices_reader
 
 from distutils.version import StrictVersion
 if StrictVersion(iris.__version__) < StrictVersion('2.0.0'):
