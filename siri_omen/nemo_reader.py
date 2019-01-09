@@ -242,6 +242,7 @@ class NemoStationFileReader(NemoFileReader):
                 continue
             # use correct standard name
             cube.standard_name = map_nemo_sname_to_standard[cube.standard_name]
+            cube = drop_singleton_dims(cube)
             dataset[key] = cube
         return dataset
 

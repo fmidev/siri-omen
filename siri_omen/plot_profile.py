@@ -60,7 +60,19 @@ def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
     plt.grid(True)
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))
     if xlim is not None:
-        ax.set_xlim(xlim)
+        if numpy.array(xlim).size > 2:
+            cur_xlim = ax.get_xlim()
+            target_xlim = None
+            for lim in xlim:
+                if cur_xlim[0] >= lim[0] and cur_xlim[1] <= lim[1]:
+                    target_xlim = lim
+                    break
+            if target_xlim is not None:
+                ax.set_xlim(target_xlim)
+        else:
+            ax.set_xlim(xlim)
+    # assuming that y axis is depth (positive downwards)
+    ax.invert_yaxis()
     if title is None:
         loc_names = unique([c.attributes['location_name']
                             for c in cube_list])
