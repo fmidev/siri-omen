@@ -85,9 +85,6 @@ def import_cmems_timeseries(dataset_id,
     :kwarg str outputdir: root directory of the stored files
     (default: dataset_id)
     """
-    if outputdir is None:
-        outputdir = dataset_id
-    create_directory(outputdir)
     all_cubes = defaultdict(iris.cube.CubeList)
 
     file_list = sorted(glob.glob(search_pattern))
@@ -123,4 +120,5 @@ def import_cmems_timeseries(dataset_id,
             print('Concatenation failed for {:}'.format(k))
             print(e)
 
+        cube = drop_singleton_dims(cube)
         save_cube(cube, root_dir=outputdir)

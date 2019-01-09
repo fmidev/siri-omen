@@ -5,6 +5,9 @@ import os
 import iris
 import numpy
 from collections import OrderedDict
+import datetime
+import pytz
+import dateutil.parser
 
 
 # standard names for all used variables
@@ -34,6 +37,24 @@ standard_name_synonyms = {
     'water_surface_height_above_reference_datum': 'sea_surface_height_above_geoid',
     'sea_water_temperature': 'sea_water_potential_temperature',
 }
+
+
+epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+epoch_unit_str = 'seconds since 1970-01-01 00:00:00-00'
+
+
+def datetime_to_epoch(t):
+    """
+    Convert python datetime object to epoch time stamp.
+    """
+    return (t - epoch).total_seconds()
+
+
+def epoch_to_datetime(t):
+    """
+    Convert python datetime object to epoch time stamp.
+    """
+    return epoch + datetime.timedelta(seconds=t)
 
 
 def unique(input_list):
@@ -137,6 +158,19 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
 
     # slice me
     new_cube = cube[slice_obj]
+    return new_cube
+
+
+def drop_singleton_dims(cube):
+    """
+    Extract all coordinates that have only one value.
+    """
+    shape = cube.data.shape
+    extract = [0] * len(shape)
+    for i, l in enumerate(shape):
+        if l > 1:
+            extract[i] = slice(l)
+    new_cube = cube[tuple(extract)]
     return new_cube
 
 
