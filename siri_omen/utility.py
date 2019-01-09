@@ -7,7 +7,6 @@ import numpy
 from collections import OrderedDict
 import datetime
 import pytz
-import dateutil.parser
 
 
 # standard names for all used variables
@@ -27,17 +26,23 @@ map_var_standard_name = {
     'wdir': 'wind_to_direction',
     'wspd': 'wind_speed',
     'slev': 'water_surface_height_above_reference_datum',
-    }
+}
 
 # reverse map: standard_name -> short_name
 map_var_short_name = dict((t[1], t[0]) for t in map_var_standard_name.items())
 
 # map standard name to known synonyms
 standard_name_synonyms = {
-    'water_surface_height_above_reference_datum': 'sea_surface_height_above_geoid',
+    'water_surface_height_above_reference_datum':
+        'sea_surface_height_above_geoid',
     'sea_water_temperature': 'sea_water_potential_temperature',
 }
 
+map_short_datatype = {
+    'timeseries': 'ts',
+    'profile': 'prof',
+    'timeprofile': 'tprof',
+}
 
 epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
 epoch_unit_str = 'seconds since 1970-01-01 00:00:00-00'
@@ -172,7 +177,6 @@ def get_cube_datatype(cube):
     timeprofile - (time, depth)
     """
     coords = [c.name() for c in cube.coords()]
-    ncoords = len(coords)
     has_depth = 'depth' in coords
     has_time = 'time' in coords
     if has_depth:
@@ -210,26 +214,8 @@ def gen_filename(cube, root_dir='obs'):
     File name is generated from the cube metadata.
     """
     assert_cube_metadata(cube)
-    ndepth = 1
-    coords = [c.name() for c in cube.coords()]
-    if 'depth' in coords:
-        ndepth = len(cube.coord('depth').points)
-    ntime = len(cube.coord('time').points)
-    if ndepth == 1:
-        datatype = 'timeseries'
-    elif ndepth > 1 and ntime == 1:
-        datatype = 'profile'
-    elif ndepth > 1 and ntime > 1:
-        datatype = 'timeprofile'
-    else:
-        raise NotImplementedError('Unknown cube data type')
-
-    type_abbrev = {
-        'timeseries': 'ts',
-        'profile': 'prof',
-        'timeprofile': 'tprof',
-    }
-    prefix = 'ts' if datatype == 'timeseries' else 'vprof'
+    datatype = get_cube_datatype(cube)
+    prefix = map_short_datatype[datatype]
 
     location_name = cube.attributes['location_name']
     dataset_id = cube.attributes['dataset_id']
@@ -237,6 +223,7 @@ def gen_filename(cube, root_dir='obs'):
     var = map_var_short_name[var]
     start_time = get_cube_datetime(cube, 0)
     end_time = get_cube_datetime(cube, -1)
+    ntime = len(cube.coord('time').points)
     if ntime == 1:
         date_str = start_time.strftime('%Y-%m-%d')
     else:
@@ -253,6 +240,63 @@ def gen_filename(cube, root_dir='obs'):
     create_directory(dir)
     fname = os.path.join(dir, fname)
     return fname
+
+
+def get_common_time_overlap(cube_list, mode='union'):
+    """
+    Find a common overlapping time interval of the cubes.
+
+    :arg cube_list: list of cubes
+    :arg mode: either 'union' or 'intersection'. If 'intersection' will return
+    the time interval in which all cubes have data. If 'union' will find the
+    time span that contains all the data.
+    """
+
+    st_op = min if mode == 'union' else max
+    et_op = max if mode == 'union' else min
+    start_time = st_op([get_cube_datetime(c, 0) for c in cube_list])
+    end_time = et_op([get_cube_datetime(c, -1) for c in cube_list])
+    assert end_time > start_time, 'Could not find overlapping time stamps'
+    return start_time, end_time
+
+
+def generate_img_filename(cube_list, prefix=None, root_dir=None,
+                          start_time=None, end_time=None):
+    """
+    Generate a canonical name for a vertical profile image file.
+    """
+    datatype = get_cube_datatype(cube_list[0])
+    if prefix is None:
+        prefix = map_short_datatype[datatype]
+
+    var_str = '-'.join(
+        unique([map_var_short_name.get(c.standard_name, c.standard_name)
+                for c in cube_list])
+    )
+    loc_str = '-'.join(
+        unique([map_var_short_name.get(c.attributes['location_name'],
+                                       c.attributes['location_name'])
+                for c in cube_list])
+    )
+
+    if start_time is None or end_time is None:
+        start_time, end_time = get_common_time_overlap(cube_list, 'union')
+    if datatype in ['timeseries', 'timeprofile']:
+        date_str = '_'.join(
+            [d.strftime('%Y-%m-%d') for d in [start_time, end_time]])
+    else:
+        date_str = start_time.strftime('%Y-%m-%d')
+
+    imgfile = '_'.join((prefix, loc_str, var_str, date_str))
+    imgfile += '.png'
+
+    if root_dir is None:
+        data_id_str = '-'.join([c.attributes['dataset_id'] for c in cube_list])
+        root_dir = os.path.join('plots', data_id_str, datatype, var_str)
+
+    imgfile = os.path.join(root_dir, imgfile)
+
+    return imgfile
 
 
 def load_cube(input_file, var):
