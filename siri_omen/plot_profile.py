@@ -8,35 +8,6 @@ import iris.quickplot as qplt
 import os
 
 
-def generate_img_filename(cube_list, root_dir=None):
-    """
-    Generate a canonical name for a vertical profile image file.
-    """
-    prefix = 'vprof'
-
-    var_str = '-'.join(
-        unique([map_var_short_name.get(c.standard_name, c.standard_name)
-                for c in cube_list])
-    )
-    loc_str = '-'.join(
-        unique([map_var_short_name.get(c.attributes['location_name'],
-                                       c.attributes['location_name'])
-                for c in cube_list])
-    )
-
-    start_time = [get_cube_datetime(c, 0) for c in cube_list]
-    date_str = start_time[0].strftime('%Y-%m-%d')
-
-    imgfile = '_'.join((prefix, loc_str, var_str, date_str))
-    imgfile += '.png'
-
-    if root_dir is not None:
-        create_directory(root_dir)
-        imgfile = os.path.join(root_dir, imgfile)
-
-    return imgfile
-
-
 def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
                  title=None, **kwargs):
     """
@@ -94,6 +65,8 @@ def save_profile_figure(cube_list, output_dir=None, **kwargs):
     plot_profile(ax, cube_list, **kwargs)
 
     imgfile = generate_img_filename(cube_list, root_dir=output_dir)
+    dir, filename = os.path.split(imgfile)
+    create_directory(dir)
 
     print('Saving image {:}'.format(imgfile))
     fig.savefig(imgfile, dpi=200, bbox_inches='tight')
