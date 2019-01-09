@@ -1,13 +1,22 @@
 """
 Tools for importing CMEMS observational data.
 """
-from . import *  # NOQA
+import numpy
+import glob
+import datetime
 from collections import defaultdict
+import iris
 from iris.experimental.equalise_cubes import equalise_attributes
+from . import utility
+
+__all__ = [
+    'read_cmems_file',
+    'import_cmems_timeseries',
+]
 
 
 def _get_depth_coord(input_file, var):
-    cube = load_cube(input_file, var)
+    cube = utility.load_cube(input_file, var)
     depth = cube.data.mean(axis=0)
     valid_mask = None
     if numpy.ma.is_masked(depth):
@@ -28,7 +37,7 @@ def read_cmems_file(input_file, var, start_time=None, end_time=None,
     """
     if verbose:
         print('Reading file {:}'.format(input_file))
-    cube = load_cube(input_file, var)
+    cube = utility.load_cube(input_file, var)
 
     # try loading quality flags
     nc_varname = cube.var_name
@@ -96,12 +105,12 @@ def import_cmems_timeseries(dataset_id,
                                         verbose=verbose)
             for cube in cube_list:
                 location_name = cube.attributes['site_code']
-                depth_str = get_depth_sring(cube)
+                depth_str = utility.get_depth_sring(cube)
                 key = '-'.join([location_name, depth_str])
                 cube.attributes['location_name'] = location_name
                 cube.attributes['dataset_id'] = dataset_id
-                assert_cube_metadata(cube)
-                assert_cube_valid_data(cube)
+                utility.assert_cube_metadata(cube)
+                utility.assert_cube_valid_data(cube)
                 all_cubes[key].append(cube)
         except AssertionError:
             pass
@@ -120,5 +129,5 @@ def import_cmems_timeseries(dataset_id,
             print('Concatenation failed for {:}'.format(k))
             print(e)
 
-        cube = drop_singleton_dims(cube)
-        save_cube(cube, root_dir=outputdir)
+        cube = utility.drop_singleton_dims(cube)
+        utility.save_cube(cube, root_dir=outputdir)
