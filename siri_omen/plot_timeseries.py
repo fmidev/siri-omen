@@ -1,11 +1,11 @@
 """
 Timeseries plotting routines
 """
-from .utility import *  # NOQA
-
+import numpy
 import matplotlib.pyplot as plt
 import iris.quickplot as qplt
 import os
+from . import utility
 
 
 def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
@@ -29,7 +29,7 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
             continue
         qplt.plot(c, axes=ax, label=label, **kwargs)
     if start_time is None and end_time is None and time_extent is not None:
-        start_time, end_time = get_common_time_overlap(cube_list, time_extent)
+        start_time, end_time = utility.get_common_time_overlap(cube_list, time_extent)
     ax.set_xlim(start_time, end_time)
     plt.grid(True)
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))
@@ -37,7 +37,7 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
         loc_names = [c.attributes['location_name'] for c in cube_list]
         dep_strs = ['{:.1f} m'.format(
             c.coord('depth').points.mean()) for c in cube_list]
-        titles = unique([' '.join(a) for a in zip(loc_names, dep_strs)])
+        titles = utility.unique([' '.join(a) for a in zip(loc_names, dep_strs)])
         title = ', '.join(titles).strip()
         ax.set_title(title)
     if time_lim is not None:
@@ -55,14 +55,16 @@ def save_timeseries_figure(cube_list, output_dir=None, **kwargs):
     start_time = kwargs.pop('start_time', None)
     end_time = kwargs.pop('end_time', None)
     if start_time is None and end_time is None and time_extent is not None:
-        start_time, end_time = get_common_time_overlap(cube_list, time_extent)
+        start_time, end_time = utility.get_common_time_overlap(cube_list,
+                                                               time_extent)
     plot_timeseries(ax, cube_list, time_extent=time_extent,
                     start_time=start_time, end_time=end_time, **kwargs)
 
-    imgfile = generate_img_filename(cube_list, root_dir=output_dir,
-                                    start_time=start_time, end_time=end_time)
+    imgfile = utility.generate_img_filename(cube_list, root_dir=output_dir,
+                                            start_time=start_time,
+                                            end_time=end_time)
     dir, filename = os.path.split(imgfile)
-    create_directory(dir)
+    utility.create_directory(dir)
 
     print('Saving image {:}'.format(imgfile))
     fig.savefig(imgfile, dpi=200, bbox_inches='tight')

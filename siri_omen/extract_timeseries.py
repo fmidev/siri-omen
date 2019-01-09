@@ -1,7 +1,9 @@
 """
 Tools for extracting time series data
 """
-from . import *  # NOQA
+from . import utility
+import iris
+import glob
 from .nemo_reader import TimeSeriesExtractor
 
 
@@ -22,7 +24,7 @@ def parse_target_coordinates(obs_file):
     depth = obs.coord('depth').points[0]
     location_name = obs.attributes['location_name']
     var = obs.standard_name
-    nemo_var = map_var_name.get(var, var)
+    nemo_var = utility.map_var_name.get(var, var)
     z = -depth
     return lon, lat, z, location_name, nemo_var, var
 
@@ -56,10 +58,10 @@ def extract_timeseries_from_obs(run_id, source_file_pattern,
 
     if outputdir is None:
         outputdir = run_id
-    create_directory(outputdir)
+    utility.create_directory(outputdir)
     # construct extractor
     ts_extractor = TimeSeriesExtractor(source_file_pattern)
 
     for obs_file in obs_files:
         cube = extract_from_obs(run_id, ts_extractor, obs_file)
-        save_cube(cube, root_dir=outputdir)
+        utility.save_cube(cube, root_dir=outputdir)

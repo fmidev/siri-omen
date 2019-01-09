@@ -1,9 +1,11 @@
 """
 Generic dataset implementation for loading, filtering and matching cubes.
 """
-from . import *  # NOQA
+import numpy
+import glob
 from scipy.spatial import cKDTree as KDTree
 from collections import defaultdict
+from . import utility
 
 
 def read_dataset(dataset_id, datatype, variable, verbose=False):
@@ -37,15 +39,15 @@ def read_dataset(dataset_id, datatype, variable, verbose=False):
         print('Search pattern: {:}'.format(pattern))
     file_list = glob.glob(pattern)
     assert len(file_list) > 0, 'No files found: {:}'.format(pattern)
-    for f in file_list:
+    for f in sorted(file_list):
         if verbose:
             print('Loading: {:}'.format(f))
-        c = load_cube(f, None)
+        c = utility.load_cube(f, None)
         if datatype in ['timeseries', 'timeprofile']:
-            dep_str = get_depth_sring(c)
+            dep_str = utility.get_depth_sring(c)
             key = '-'.join((c.attributes['location_name'], dep_str))
         else:
-            start_str = get_cube_datetime(c, 0).strftime('%Y-%m-%d')
+            start_str = utility.get_cube_datetime(c, 0).strftime('%Y-%m-%d')
             key = '-'.join((c.attributes['location_name'], start_str))
         d[key] = c
     return d
@@ -88,8 +90,8 @@ def find_station_pairs(*dataset_list, dist_threshold=0.1, time_threshold=None):
                         # if all data is bad, skip
                         continue
                     if time_threshold is not None:
-                        src_time = get_cube_datetime(src_cube, 0)
-                        pair_time = get_cube_datetime(paired_cube, 0)
+                        src_time = utility.get_cube_datetime(src_cube, 0)
+                        pair_time = utility.get_cube_datetime(paired_cube, 0)
                         time_diff = abs((src_time - pair_time).total_seconds())
                         if time_diff > time_threshold:
                             continue

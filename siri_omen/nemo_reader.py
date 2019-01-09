@@ -3,10 +3,12 @@ Tools for reading in NEMO output files.
 
 All methods that are NEMO specific should be within this module.
 """
-from . import *  # NOQA
+import numpy
 from scipy.spatial import cKDTree as KDTree
 from iris.experimental.equalise_cubes import equalise_attributes
 import cf_units
+import iris
+from . import utility
 
 
 map_nemo_standard_name = {

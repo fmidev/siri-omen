@@ -1,11 +1,11 @@
 """
 Vertical profile plotting routines
 """
-from .utility import *  # NOQA
-
+import numpy
 import matplotlib.pyplot as plt
 import iris.quickplot as qplt
 import os
+from . import utility
 
 
 def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
@@ -45,11 +45,11 @@ def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
     # assuming that y axis is depth (positive downwards)
     ax.invert_yaxis()
     if title is None:
-        loc_names = unique([c.attributes['location_name']
+        loc_names = utility.unique([c.attributes['location_name']
                             for c in cube_list])
-        date = get_cube_datetime(cube_list[0], 0)
+        date = utility.get_cube_datetime(cube_list[0], 0)
         date_str = date.strftime('%Y-%m-%d')
-        titles = unique(loc_names)
+        titles = utility.unique(loc_names)
         title = ', '.join(titles).strip()
         title += ' ' + date_str
         ax.set_title(title)
@@ -64,9 +64,9 @@ def save_profile_figure(cube_list, output_dir=None, **kwargs):
 
     plot_profile(ax, cube_list, **kwargs)
 
-    imgfile = generate_img_filename(cube_list, root_dir=output_dir)
+    imgfile = utility.generate_img_filename(cube_list, root_dir=output_dir)
     dir, filename = os.path.split(imgfile)
-    create_directory(dir)
+    utility.create_directory(dir)
 
     print('Saving image {:}'.format(imgfile))
     fig.savefig(imgfile, dpi=200, bbox_inches='tight')

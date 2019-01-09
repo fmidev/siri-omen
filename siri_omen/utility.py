@@ -190,6 +190,7 @@ def get_cube_datatype(cube):
     elif (has_time and ntime > 1) and (has_depth and ndepth > 1):
         datatype = 'timeprofile'
     else:
+        print(cube)
         raise NotImplementedError('Unknown cube data type')
     return datatype
 
