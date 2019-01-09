@@ -130,4 +130,9 @@ def import_cmems_timeseries(dataset_id,
             print(e)
 
         cube = utility.drop_singleton_dims(cube)
-        utility.save_cube(cube, root_dir=outputdir)
+        try:
+            utility.save_cube(cube, root_dir=outputdir)
+        except Exception as e:
+            print('Could not save cube: {:}'.format(k))
+            print(e)
+
