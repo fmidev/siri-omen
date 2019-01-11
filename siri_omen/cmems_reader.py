@@ -3,7 +3,6 @@ Tools for importing CMEMS observational data.
 """
 import numpy
 import glob
-import datetime
 from collections import defaultdict
 import iris
 from iris.experimental.equalise_cubes import equalise_attributes
@@ -135,4 +134,3 @@ def import_cmems_timeseries(dataset_id,
         except Exception as e:
             print('Could not save cube: {:}'.format(k))
             print(e)
-

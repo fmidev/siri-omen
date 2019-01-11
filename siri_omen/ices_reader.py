@@ -54,7 +54,6 @@ def save_cast(cast):
     for field in cast:
         ncname = field.lower().replace(' ', '_').replace('.', '')
         vals = cast[field]
-        fill_value = vals.fill_value if numpy.ma.is_masked(vals) else 1e20
         if ncname == 'time':
             time_units = cf_units.Unit(
                 'seconds since 1970-01-01 00:00:00-00',
@@ -180,7 +179,8 @@ def process_cvs_file(cvs_filename, station_file, dataset_id):
                 # single value, purge list
                 value = list_dict[field][0]
                 if value not in ['', numpy.nan]:
-                    if field in ['Latitude', 'Longitude', 'Bot.depth', 'Secchi Depth', 'PRES']:
+                    if field in ['Latitude', 'Longitude', 'Bot.depth',
+                                 'Secchi Depth', 'PRES']:
                         value = float(value)
                     cast[field] = value
             else:

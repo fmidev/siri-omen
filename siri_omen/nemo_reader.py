@@ -8,8 +8,10 @@ from scipy.spatial import cKDTree as KDTree
 from iris.experimental.equalise_cubes import equalise_attributes
 import cf_units
 import iris
+import netCDF4
+import glob
+import collections
 from . import utility
-
 
 map_nemo_standard_name = {
     'sea_water_temperature': 'sea_water_potential_temperature',
@@ -246,7 +248,7 @@ class NemoStationFileReader(NemoFileReader):
                 continue
             # use correct standard name
             cube.standard_name = map_nemo_sname_to_standard[cube.standard_name]
-            cube = drop_singleton_dims(cube)
+            cube = utility.drop_singleton_dims(cube)
             dataset[key] = cube
         return dataset
 
@@ -377,7 +379,7 @@ class TimeSeriesExtractor():
         if dataset_id is not None:
             output.attributes['dataset_id'] = dataset_id
         # make sure we comply with the required metadata policy
-        assert_cube_metadata(output)
+        utility.assert_cube_metadata(output)
         return output
 
 
@@ -509,7 +511,7 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
                                     dataset_id=dataset_id,
                                     verbose=True)
     for var in var_list:
-        nemo_var = map_nemo_standard_name[map_var_standard_name[var]]
+        nemo_var = map_nemo_standard_name[utility.map_var_standard_name[var]]
         var_name = nemo_ncvar_name.get(var)
         dataset = nreader.get_dataset(nemo_var, var_name=var_name)
 
@@ -523,4 +525,4 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
                                                standard_name='depth',
                                                units='m')
                 cube.add_aux_coord(dep_dim, None)
-            save_cube(cube)
+            utility.save_cube(cube)
