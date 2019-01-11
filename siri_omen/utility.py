@@ -7,7 +7,7 @@ import numpy
 from collections import OrderedDict
 import datetime
 import pytz
-
+from . import statistics
 
 # standard names for all used variables
 # based on CF standard and oceanSITES short variable names
@@ -261,7 +261,7 @@ def get_common_time_overlap(cube_list, mode='union'):
     return start_time, end_time
 
 
-def generate_img_filename(cube_list, prefix=None, root_dir=None,
+def generate_img_filename(cube_list, prefix=None, loc_str=None, root_dir=None,
                           start_time=None, end_time=None):
     """
     Generate a canonical name for a vertical profile image file.
@@ -274,11 +274,12 @@ def generate_img_filename(cube_list, prefix=None, root_dir=None,
         unique([map_var_short_name.get(c.standard_name, c.standard_name)
                 for c in cube_list])
     )
-    loc_str = '-'.join(
-        unique([map_var_short_name.get(c.attributes['location_name'],
-                                       c.attributes['location_name'])
-                for c in cube_list])
-    )
+    if loc_str is None:
+        loc_str = '-'.join(
+            unique([map_var_short_name.get(c.attributes['location_name'],
+                                           c.attributes['location_name'])
+                    for c in cube_list])
+        )
 
     if start_time is None or end_time is None:
         start_time, end_time = get_common_time_overlap(cube_list, 'union')
@@ -292,7 +293,8 @@ def generate_img_filename(cube_list, prefix=None, root_dir=None,
     imgfile += '.png'
 
     if root_dir is None:
-        data_id_str = '-'.join([c.attributes['dataset_id'] for c in cube_list])
+        id_list = unique([c.attributes['dataset_id'] for c in cube_list])
+        data_id_str = '-'.join(id_list)
         root_dir = os.path.join('plots', data_id_str, datatype, var_str)
 
     imgfile = os.path.join(root_dir, imgfile)
@@ -327,3 +329,40 @@ def save_cube(cube, root_dir=None, fname=None):
         fname = gen_filename(cube, root_dir=root_dir)
     print('Saving to {:}'.format(fname))
     iris.save(cube, fname)
+
+
+def align_cubes(first, second):
+    """
+    Interpolate cubes on the same grid.
+
+    Data in second cube will be interpolated on the grid of the first.
+    """
+    o = first
+    # make deep copy as cubes will be modified
+    m = second.copy()
+
+    assert len(o.data.shape) == 1, 'only 1D cubes are supported'
+    assert len(m.data.shape) == 1, 'only 1D cubes are supported'
+
+    # find non-scalar coordinate
+    coords = [c.name() for c in o.coords() if len(c.points) > 1]
+    coord_name = coords[0]
+
+    # convert model time to obs time
+    m_time_coord = m.coord(coord_name)
+    o_time_coord = o.coord(coord_name)
+    m_time_coord.convert_units(o_time_coord.units)
+
+    scheme = iris.analysis.Linear(extrapolation_mode='mask')
+    m2 = m.interpolate([(coord_name, o_time_coord.points)], scheme)
+
+    return m2
+
+
+def compute_cube_statistics(reference, predicted):
+
+    predicted_alinged = align_cubes(reference, predicted)
+
+    r = reference.data
+    p = predicted_alinged.data
+    return statistics.compute_statistics(r, p)

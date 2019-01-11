@@ -14,10 +14,12 @@ from .extract_timeseries import *  # NOQA
 from .cmems_reader import *  # NOQA
 from .plot_timeseries import *  # NOQA
 from .plot_profile import *  # NOQA
+from .plot_taylor_diag import *  # NOQA
 
-from . import nemo_reader
-from . import cmems_reader
-from . import ices_reader
+from . import nemo_reader  # NOQA
+from . import cmems_reader  # NOQA
+from . import ices_reader  # NOQA
+from . import statistics  # NOQA
 
 from distutils.version import StrictVersion
 if StrictVersion(iris.__version__) < StrictVersion('2.0.0'):
