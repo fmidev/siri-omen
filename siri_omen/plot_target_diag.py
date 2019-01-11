@@ -12,6 +12,18 @@ from cycler import cycler
 from . import utility
 from . import statistics
 from .plot_taylor_diag import get_point_style_cycler, get_cube_stats
+from .plot_taylor_diag import _compute_pairwise_stats
+from . import plot_taylor_diag as taylor
+
+
+__all__ = [
+    'TargetDiagram',
+    'plot_target_diagram',
+    'plot_normalized_target_diagram',
+    'plot_normalized_taylor_target_diagram',
+    'save_target_diagram',
+    'save_taylor_target_diagram',
+]
 
 
 class TargetDiagram(object):
@@ -23,7 +35,7 @@ class TargetDiagram(object):
     the origin is root mean square error.
     """
 
-    def __init__(self, fig=None, rect=111):
+    def __init__(self, fig=None, rect=None):
         """
         Set up Target diagram axes.
 
@@ -33,10 +45,9 @@ class TargetDiagram(object):
         * rect: subplot definition
         """
 
-        if fig is None:
-            self.fig = plt.figure()
-        else:
-            self.fig = fig
+        self.fig = plt.figure() if fig is None else fig
+        if rect is None:
+            rect = 111
 
         ax = self.fig.add_subplot(rect)
         self.ax = ax
@@ -130,19 +141,25 @@ class TargetDiagram(object):
 
 
 def _plot_target(cube_pairs, normalized,
+                 pair_stats=None,
+                 fig=None, rect=None, add_legend=True,
                  label_attr='dataset_id', title=None):
 
-    fig = plt.figure(figsize=(9, 9))
-    dia = TargetDiagram(fig=fig)
+    if fig is None:
+        fig = plt.figure(figsize=(9, 9))
+    dia = TargetDiagram(fig=fig, rect=rect)
     dia.add_grid()
 
-    for o, m in cube_pairs:
-        obs_stats, mod_stats = get_cube_stats(o, m, normalized,
-                                              add_crmse_sign=True)
+    if pair_stats is None:
+        pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
+                                             add_crmse_sign=True)
+
+    for o, m, o_stats, m_stats in pair_stats:
         label = m.attributes.get(label_attr)
-        dia.add_sample(mod_stats['crmse'], mod_stats['bias'],
+        dia.add_sample(m_stats['crmse'], m_stats['bias'],
                        label=label)
-    dia.add_legend()
+    if add_legend:
+        dia.add_legend()
 
     if title is None:
         var_list = [p[0].standard_name.replace('_', ' ') for p in cube_pairs]
@@ -164,21 +181,21 @@ def _plot_target(cube_pairs, normalized,
         dia.ax.set_xlabel(xlabel + unit_str)
         dia.ax.set_ylabel(ylabel + unit_str)
 
-    contours = dia.add_contours(colors='0.7', zorder=0, linewidth=0.6)
+    contours = dia.add_contours(colors='0.7', zorder=0, linewidths=1.0)
     plt.clabel(contours, inline=1, fontsize=10, fmt='%.2f')
 
     return dia
 
 
-def plot_target_diagram(reference, cube_list, label_attr='dataset_id'):
+def plot_target_diagram(reference, cube_list, **kwargs):
     normalized = False
     cube_pairs = [(reference, c) for c in cube_list]
-    return _plot_target(cube_pairs, normalized, label_attr=label_attr)
+    return _plot_target(cube_pairs, normalized, **kwargs)
 
 
-def plot_normalized_target_diagram(cube_pairs, label_attr='dataset_id'):
+def plot_normalized_target_diagram(cube_pairs, **kwargs):
     normalized = True
-    return _plot_target(cube_pairs, normalized, label_attr=label_attr)
+    return _plot_target(cube_pairs, normalized, **kwargs)
 
 
 def save_target_diagram(cube_pairs, output_dir=None, **kwargs):
@@ -193,6 +210,51 @@ def save_target_diagram(cube_pairs, output_dir=None, **kwargs):
                                             loc_str='stations',
                                             root_dir=output_dir,
                                             prefix='target')
+    dir, filename = os.path.split(imgfile)
+    utility.create_directory(dir)
+
+    print('Saving image {:}'.format(imgfile))
+    fig.savefig(imgfile, dpi=200, bbox_inches='tight')
+    plt.close(fig)
+
+
+def _plot_taylor_target(cube_pairs, normalized, **kwargs):
+
+    fig = plt.figure(figsize=(18, 9))
+    plt.subplots_adjust(wspace=0.08)
+
+    pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
+                                         add_crmse_sign=True)
+    taylor_dia = taylor.plot_normalized_taylor_diagram(
+        cube_pairs, pair_stats=pair_stats,
+        fig=fig, rect=121, add_legend=False, title='', **kwargs)
+    target_dia = plot_normalized_target_diagram(
+        cube_pairs, pair_stats=pair_stats,
+        fig=fig, rect=122, add_legend=True, **kwargs)
+    title = target_dia.ax.get_title()
+    target_dia.ax.set_title(title, x=-0.04)
+
+    return taylor_dia, target_dia
+
+
+def plot_normalized_taylor_target_diagram(cube_pairs, **kwargs):
+    normalized = True
+    return _plot_taylor_target(cube_pairs, normalized, **kwargs)
+
+
+def save_taylor_target_diagram(cube_pairs, output_dir=None, **kwargs):
+    """
+    Makes a default taylor-target diagram and saves it to disk.
+    """
+    tay_dia, tar_dia = plot_normalized_taylor_target_diagram(cube_pairs,
+                                                             **kwargs)
+    fig = tay_dia.fig
+
+    cube_list = [p[0] for p in cube_pairs] + [p[1] for p in cube_pairs]
+    imgfile = utility.generate_img_filename(cube_list,
+                                            loc_str='stations',
+                                            root_dir=output_dir,
+                                            prefix='taylortarget')
     dir, filename = os.path.split(imgfile)
     utility.create_directory(dir)
 
