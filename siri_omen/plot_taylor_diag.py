@@ -53,8 +53,8 @@ class TaylorDiagram(object):
     theta=arccos(correlation).
     """
 
-    def __init__(self, refstd,
-                 fig=None, rect=111, label='_', srange=(0, 1.5), extend=False):
+    def __init__(self, refstd, fig=None, rect=None, label='_',
+                 srange=(0, 1.5), extend=False):
         """
         Set up Taylor diagram axes, i.e. single quadrant polar
         plot, using `mpl_toolkits.axisartist.floating_axes`.
@@ -98,10 +98,9 @@ class TaylorDiagram(object):
             grid_locator1=gl1, tick_formatter1=tf1,
             grid_locator2=gl2)
 
-        if fig is None:
-            self.fig = plt.figure()
-        else:
-            self.fig = fig
+        self.fig = plt.figure() if fig is None else fig
+        if rect is None:
+            rect = 111
 
         ax = floating_axes.FloatingSubplot(self.fig, rect, grid_helper=ghelper)
         self.fig.add_subplot(ax)
@@ -128,8 +127,6 @@ class TaylorDiagram(object):
 
         self._ax = ax                   # Graphical axes
         self.ax = ax.get_aux_axes(tr)   # Polar coordinates
-        # set color and marker styles
-        self.ax.set_prop_cycle(get_point_style_cycler())
 
         # Add reference point and stddev contour
         l, = self.ax.plot([0], self.refstd, 'k*',
@@ -140,7 +137,9 @@ class TaylorDiagram(object):
 
         # Collect sample points for latter use (e.g. legend)
         self.sample_points = [l]
-        # TODO must reset color cycles to ignore ref point
+
+        # set color and marker styles
+        self.ax.set_prop_cycle(get_point_style_cycler())
 
     def add_sample(self, stddev, corrcoef, *args, **kwargs):
         """
@@ -202,24 +201,41 @@ def get_cube_stats(r, p, normalized, add_crmse_sign=False):
     return r_stats, p_stats
 
 
+def _compute_pairwise_stats(cube_pairs, normalized, add_crmse_sign=False):
+    pair_stats = []
+    for o, m in cube_pairs:
+        obs_stats, mod_stats = get_cube_stats(o, m, normalized,
+                                              add_crmse_sign=add_crmse_sign)
+        pair_stats.append((o, m, obs_stats, mod_stats))
+    return pair_stats
+
+
 def _plot_taylor(cube_pairs, ref_stddev, normalized,
+                 pair_stats=None,
+                 fig=None, rect=None, add_legend=True,
                  label_attr='dataset_id', ref_label=None, title=None):
 
+    if fig is None:
+        fig = plt.figure(figsize=(9, 9))
     if ref_label is None:
         ref_label = '_'
-    fig = plt.figure(figsize=(9, 9))
     srange = (0, 1.49) if normalized else (0, 1.5)
-    dia = TaylorDiagram(ref_stddev, label=ref_label, srange=srange, fig=fig)
+    dia = TaylorDiagram(ref_stddev, label=ref_label, srange=srange,
+                        fig=fig, rect=rect)
     dia.add_grid()
-    contours = dia.add_contours(colors='0.6', zorder=0, linewidth=0.6)
+    contours = dia.add_contours(colors='0.6', zorder=0, linewidths=1.1)
     plt.clabel(contours, inline=1, fontsize=10, fmt='%.2f')
 
-    for o, m in cube_pairs:
-        obs_stats, mod_stats = get_cube_stats(o, m, normalized)
+    if pair_stats is None:
+        pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
+                                             add_crmse_sign=True)
+
+    for o, m, o_stats, m_stats in pair_stats:
         label = m.attributes.get(label_attr)
-        dia.add_sample(mod_stats['stddev'], mod_stats['corrcoef'],
+        dia.add_sample(m_stats['stddev'], m_stats['corrcoef'],
                        label=label)
-    dia.add_legend()
+    if add_legend:
+        dia.add_legend()
 
     if title is None:
         var_list = [p[0].standard_name.replace('_', ' ') for p in cube_pairs]
@@ -242,21 +258,17 @@ def _plot_taylor(cube_pairs, ref_stddev, normalized,
     return dia
 
 
-def plot_taylor_diagram(reference, cube_list, label_attr='dataset_id',
-                        ref_label=None):
+def plot_taylor_diagram(reference, cube_list, **kwargs):
     normalized = False
     ref_stddev = statistics.compute_stddev(reference.data)
     cube_pairs = [(reference, c) for c in cube_list]
-    return _plot_taylor(cube_pairs, ref_stddev, normalized,
-                        label_attr=label_attr, ref_label=ref_label)
+    return _plot_taylor(cube_pairs, ref_stddev, normalized, **kwargs)
 
 
-def plot_normalized_taylor_diagram(cube_pairs, label_attr='dataset_id',
-                                   ref_label=None):
+def plot_normalized_taylor_diagram(cube_pairs, **kwargs):
     normalized = True
     ref_stddev = 1.0
-    return _plot_taylor(cube_pairs, ref_stddev, normalized,
-                        label_attr=label_attr, ref_label=ref_label)
+    return _plot_taylor(cube_pairs, ref_stddev, normalized, **kwargs)
 
 
 def save_taylor_diagram(cube_pairs, output_dir=None, **kwargs):
