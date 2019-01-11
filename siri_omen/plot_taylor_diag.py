@@ -4,7 +4,6 @@ Taylor diagram (Taylor, 2001) implementation.
 Based on implementation by Yannick Copin <yannick.copin@laposte.net>
 See: https://gist.github.com/ycopin/3342888
 """
-
 import os
 import numpy
 import matplotlib.pyplot as plt
@@ -22,6 +21,7 @@ __all__ = [
     'plot_normalized_taylor_diagram',
     'save_taylor_diagram',
     'get_point_style_cycler',
+    'get_cube_stats',
 ]
 
 
@@ -139,7 +139,8 @@ class TaylorDiagram(object):
         self.ax.plot(t, r, 'k--', label='_', zorder=1)
 
         # Collect sample points for latter use (e.g. legend)
-        self.samplePoints = [l]
+        self.sample_points = [l]
+        # TODO must reset color cycles to ignore ref point
 
     def add_sample(self, stddev, corrcoef, *args, **kwargs):
         """
@@ -148,9 +149,10 @@ class TaylorDiagram(object):
         `Figure.plot` command.
         """
         kwargs.setdefault('zorder', 2)
+        kwargs.setdefault('alpha', 0.7)
         l, = self.ax.plot(numpy.arccos(corrcoef), stddev,
                           *args, **kwargs)  # (theta, radius)
-        self.samplePoints.append(l)
+        self.sample_points.append(l)
 
         return l
 
@@ -162,7 +164,7 @@ class TaylorDiagram(object):
 
     def add_contours(self, levels=5, **kwargs):
         """
-        Add constant centered RMS difference contours, defined by *levels*.
+        Add constant centered cRMSE difference contours, defined by *levels*.
         """
 
         rs, ts = numpy.meshgrid(numpy.linspace(self.smin, self.smax),
@@ -170,9 +172,7 @@ class TaylorDiagram(object):
         # Compute centered RMS difference
         rms = numpy.sqrt(self.refstd**2 + rs**2 -
                          2 * self.refstd * rs * numpy.cos(ts))
-
         contours = self.ax.contour(ts, rs, rms, levels, **kwargs)
-
         return contours
 
     def add_legend(self, **kwargs):
@@ -182,7 +182,7 @@ class TaylorDiagram(object):
         kwargs.setdefault('prop', dict(size='small'))
         kwargs.setdefault('loc', 'upper left')
         kwargs.setdefault('bbox_to_anchor', (0.98, 1.0))
-        nsamples = len(self.samplePoints)
+        nsamples = len(self.sample_points)
         ncolumns = int(numpy.ceil(float(nsamples) / 20))
         kwargs.setdefault('ncol', ncolumns)
         self.ax.legend(numpoints=1, **kwargs)
@@ -194,11 +194,11 @@ class TaylorDiagram(object):
         self._ax.set_title(title)
 
 
-def _get_cube_stats(r, p, normalized):
+def get_cube_stats(r, p, normalized, add_crmse_sign=False):
     r_stats, p_stats = utility.compute_cube_statistics(r, p)
     if normalized:
         r_stats, p_stats = statistics.normalize_statistics(
-            r_stats, p_stats, add_crmse_sign=False)
+            r_stats, p_stats, add_crmse_sign=add_crmse_sign)
     return r_stats, p_stats
 
 
@@ -211,15 +211,16 @@ def _plot_taylor(cube_pairs, ref_stddev, normalized,
     srange = (0, 1.49) if normalized else (0, 1.5)
     dia = TaylorDiagram(ref_stddev, label=ref_label, srange=srange, fig=fig)
     dia.add_grid()
-    contours = dia.add_contours(colors='0.5', zorder=0)
+    contours = dia.add_contours(colors='0.6', zorder=0, linewidth=0.6)
     plt.clabel(contours, inline=1, fontsize=10, fmt='%.2f')
 
     for o, m in cube_pairs:
-        obs_stats, mod_stats = _get_cube_stats(o, m, normalized)
+        obs_stats, mod_stats = get_cube_stats(o, m, normalized)
         label = m.attributes.get(label_attr)
         dia.add_sample(mod_stats['stddev'], mod_stats['corrcoef'],
                        label=label)
     dia.add_legend()
+
     if title is None:
         var_list = [p[0].standard_name.replace('_', ' ') for p in cube_pairs]
         var_str = ' '.join(utility.unique(var_list))
@@ -260,7 +261,7 @@ def plot_normalized_taylor_diagram(cube_pairs, label_attr='dataset_id',
 
 def save_taylor_diagram(cube_pairs, output_dir=None, **kwargs):
     """
-    Makes a default time series plot and saves it to disk.
+    Makes a default Taylor diagram and saves it to disk.
     """
     dia = plot_normalized_taylor_diagram(cube_pairs, **kwargs)
     fig = dia.fig
@@ -276,11 +277,3 @@ def save_taylor_diagram(cube_pairs, output_dir=None, **kwargs):
     print('Saving image {:}'.format(imgfile))
     fig.savefig(imgfile, dpi=200, bbox_inches='tight')
     plt.close(fig)
-
-
-if __name__ == '__main__':
-
-    dia = test1()
-    dia = test2()
-
-    plt.show()
