@@ -46,7 +46,7 @@ def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
     ax.invert_yaxis()
     if title is None:
         loc_names = utility.unique([c.attributes['location_name']
-                            for c in cube_list])
+                                    for c in cube_list])
         date = utility.get_cube_datetime(cube_list[0], 0)
         date_str = date.strftime('%Y-%m-%d')
         titles = utility.unique(loc_names)

@@ -29,7 +29,8 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
             continue
         qplt.plot(c, axes=ax, label=label, **kwargs)
     if start_time is None and end_time is None and time_extent is not None:
-        start_time, end_time = utility.get_common_time_overlap(cube_list, time_extent)
+        start_time, end_time = utility.get_common_time_overlap(cube_list,
+                                                               time_extent)
     ax.set_xlim(start_time, end_time)
     plt.grid(True)
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))
@@ -37,7 +38,8 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
         loc_names = [c.attributes['location_name'] for c in cube_list]
         dep_strs = ['{:.1f} m'.format(
             c.coord('depth').points.mean()) for c in cube_list]
-        titles = utility.unique([' '.join(a) for a in zip(loc_names, dep_strs)])
+        titles = utility.unique([' '.join(a) for
+                                 a in zip(loc_names, dep_strs)])
         title = ', '.join(titles).strip()
         ax.set_title(title)
     if time_lim is not None:
