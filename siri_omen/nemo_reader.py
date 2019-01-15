@@ -187,25 +187,12 @@ class NemoStationFileReader(NemoFileReader):
                 location_name = name_attr.replace('station_', '')
                 lat = ncfile['nav_lat'][:][0, 0]
                 lon = ncfile['nav_lon'][:][0, 0]
-                depth = ncfile['deptht'][:]
-                # omit points below bottom
-                # FIXME this assumes temp field exists, generalize
-                valid_mask = ncfile['temperature'][:, :, 0, 0]
-                if isinstance(valid_mask, numpy.ma.MaskedArray):
-                    valid_mask = valid_mask.filled(numpy.nan)
-                valid_mask = numpy.isfinite(valid_mask)
-                valid_mask = numpy.min(valid_mask, axis=0)
-                depth = depth[valid_mask]
-                if isinstance(depth, numpy.ma.MaskedArray):
-                    depth = depth.filled(numpy.nan)
                 key = '{:}-lon{:.2f}-lat{:.2f}'.format(location_name, lon, lat)
                 if key not in self.station_metadata:
                     meta = {}
                     meta['location_name'] = location_name
                     meta['latitude'] = lat
                     meta['longitude'] = lon
-                    meta['depth'] = depth
-                    meta['valid_mask'] = valid_mask
                     meta['files'] = []
                     self.station_metadata[key] = meta
                 self.station_metadata[key]['files'].append(f)
@@ -242,14 +229,15 @@ class NemoStationFileReader(NemoFileReader):
             cube.attributes['dataset_id'] = self.dataset_id
             cube.attributes.pop('name', None)
             cube.attributes['location_name'] = meta['location_name']
-            if isinstance(cube.data, numpy.ma.MaskedArray) \
-                    and numpy.all(cube.data.mask):
-                # if all data is bad, skip
-                continue
             # use correct standard name
             cube.standard_name = map_nemo_sname_to_standard[cube.standard_name]
             cube = utility.drop_singleton_dims(cube)
-            dataset[key] = cube
+            try:
+                utility.assert_cube_metadata(cube)
+                utility.assert_cube_valid_data(cube)
+                dataset[key] = cube
+            except AssertionError as e:
+                pass
         return dataset
 
 
