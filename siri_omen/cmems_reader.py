@@ -79,7 +79,9 @@ def read_cmems_file(input_file, var, start_time=None, end_time=None,
 def import_cmems_timeseries(dataset_id,
                             search_pattern, standard_name,
                             start_time=None, end_time=None,
-                            outputdir=None, verbose=False):
+                            outputdir=None,
+                            skip_station_list=None,
+                            verbose=False):
     """
     Read CMEMS time series multiple netCDF files and stores it to disk.
 
@@ -91,6 +93,7 @@ def import_cmems_timeseries(dataset_id,
     :kwarg datetime start_time: first time stamp to accept (optional)
     :kwarg datetime end_time: last time stamp to accept (optional)
     :kwarg str outputdir: root directory of the stored files
+    :kwarg skip_station_list: list of station names that will be skipped.
     (default: dataset_id)
     """
     all_cubes = defaultdict(iris.cube.CubeList)
@@ -129,7 +132,12 @@ def import_cmems_timeseries(dataset_id,
             print(e)
 
         cube = utility.drop_singleton_dims(cube)
+        location_name = cube.attributes['location_name']
+        if skip_station_list and location_name in skip_station_list:
+            print('Skipping station {:}'.format(location_name))
+            continue
         try:
+            cube = utility.constrain_cube_time(cube, start_time, end_time)
             utility.save_cube(cube, root_dir=outputdir)
         except Exception as e:
             print('Could not save cube: {:}'.format(k))
