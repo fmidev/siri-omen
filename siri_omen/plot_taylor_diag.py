@@ -240,8 +240,11 @@ def _plot_taylor(cube_pairs, ref_stddev, normalized,
     if title is None:
         var_list = [p[0].standard_name.replace('_', ' ') for p in cube_pairs]
         var_str = ' '.join(utility.unique(var_list))
-        title = var_str
-        dia.add_title(var_str)
+        dataset_list = [p[0].attributes['dataset_id'] for p in cube_pairs]
+        dataset_list += [p[1].attributes['dataset_id'] for p in cube_pairs]
+        dataset_str = ' '.join(utility.unique(dataset_list))
+        title = dataset_str + ': ' + var_str
+        dia.add_title(title)
 
     # update standard deviation label
     s_ax = dia._ax.axis["left"]
