@@ -21,6 +21,7 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
     def get_label(cube, attr_name):
         return cube.attributes.get(attr_name)
 
+    kwargs.setdefault('linewidth', 1.2)
     for c in cube_list:
         label = get_label(c, label_attr)
         if isinstance(c.data, numpy.ma.MaskedArray) \
