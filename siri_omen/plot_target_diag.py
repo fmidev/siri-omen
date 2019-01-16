@@ -35,7 +35,7 @@ class TargetDiagram(object):
     the origin is root mean square error.
     """
 
-    def __init__(self, fig=None, rect=None):
+    def __init__(self, fig=None, rect=None, datalim=None):
         """
         Set up Target diagram axes.
 
@@ -53,14 +53,11 @@ class TargetDiagram(object):
         self.ax = ax
 
         # Adjust axes
-        #ax.set_aspect('equal')
         ax.set_aspect('equal', adjustable='box')
         ax.spines['left'].set_position('zero')
         ax.spines['right'].set_color('none')
         ax.spines['bottom'].set_position('zero')
         ax.spines['top'].set_color('none')
-        #ax.spines['left'].set_smart_bounds(True)
-        #ax.spines['bottom'].set_smart_bounds(True)
         ax.xaxis.set_ticks_position('bottom')
         ax.yaxis.set_ticks_position('left')
         ax.set_xlabel('cRMSE', ha='right', va='bottom')
@@ -69,7 +66,12 @@ class TargetDiagram(object):
         ax.yaxis.set_label_coords(0.51, 1.0)
 
         self.max_datalim = 0.
-        self._update_axes(1.01, expand_factor=1.0)
+        self.fixed_axes = False
+        if datalim is not None:
+            self._update_axes(datalim, expand_factor=1.0)
+            self.fixed_axes = True
+        else:
+            self._update_axes(1.01, expand_factor=1.0)
 
         # set color and marker styles
         self.ax.set_prop_cycle(get_point_style_cycler())
@@ -83,8 +85,9 @@ class TargetDiagram(object):
             self.max_datalim = new_max
             bounds = [-expand_factor*self.max_datalim,
                       expand_factor*self.max_datalim]
-            self.ax.set_xlim(bounds)
-            self.ax.set_ylim(bounds)
+            if not self.fixed_axes:
+                self.ax.set_xlim(bounds)
+                self.ax.set_ylim(bounds)
 
     def add_sample(self, crmse, bias, *args, **kwargs):
         """
@@ -143,11 +146,12 @@ class TargetDiagram(object):
 def _plot_target(cube_pairs, normalized,
                  pair_stats=None,
                  fig=None, rect=None, add_legend=True,
+                 datalim=None,
                  label_attr='dataset_id', title=None):
 
     if fig is None:
         fig = plt.figure(figsize=(9, 9))
-    dia = TargetDiagram(fig=fig, rect=rect)
+    dia = TargetDiagram(fig=fig, rect=rect, datalim=datalim)
     dia.add_grid()
 
     if pair_stats is None:
@@ -226,6 +230,7 @@ def _plot_taylor_target(cube_pairs, normalized, **kwargs):
     fig = plt.figure(figsize=(18, 9))
     plt.subplots_adjust(wspace=0.08)
 
+    target_datalim = kwargs.pop('target_datalim')
     pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
                                          add_crmse_sign=True)
     taylor_dia = taylor.plot_normalized_taylor_diagram(
@@ -233,7 +238,7 @@ def _plot_taylor_target(cube_pairs, normalized, **kwargs):
         fig=fig, rect=121, add_legend=False, title='', **kwargs)
     target_dia = plot_normalized_target_diagram(
         cube_pairs, pair_stats=pair_stats,
-        fig=fig, rect=122, add_legend=True, **kwargs)
+        fig=fig, rect=122, add_legend=True, datalim=target_datalim, **kwargs)
     title = target_dia.ax.get_title()
     target_dia.ax.set_title(title, x=-0.04)
 
