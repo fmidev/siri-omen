@@ -135,6 +135,8 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     :returns: an iris Cube instance
     :raises: AssertionError if requested time period out of range
     """
+    if start_time is None and end_time is None:
+        return cube.copy()
     time = cube.coord('time')
     assert time in cube.dim_coords, 'Time is not a DimCoord instance'
     time_dim_index = cube.coord_dims('time')

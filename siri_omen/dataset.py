@@ -8,7 +8,8 @@ from collections import defaultdict
 from . import utility
 
 
-def read_dataset(dataset_id, datatype, variable, verbose=False):
+def read_dataset(dataset_id, datatype, variable,
+                 start_time=None, end_time=None, verbose=False):
     """
     Read files using pattern
 
@@ -43,6 +44,8 @@ def read_dataset(dataset_id, datatype, variable, verbose=False):
         if verbose:
             print('Loading: {:}'.format(f))
         c = utility.load_cube(f, None)
+        c = utility.constrain_cube_time(c, start_time=start_time,
+                                        end_time=end_time)
         if datatype in ['timeseries', 'timeprofile']:
             dep_str = utility.get_depth_sring(c)
             key = '-'.join((c.attributes['location_name'], dep_str))
