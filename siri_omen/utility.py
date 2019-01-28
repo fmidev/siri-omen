@@ -162,6 +162,7 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     else:
         slice_obj = [slice(None, None, None)] * ndims
         slice_obj[time_dim_index] = tix
+        slice_obj = tuple(slice_obj)
 
     # slice me
     new_cube = cube[slice_obj]
@@ -283,12 +284,13 @@ def generate_img_filename(cube_list, prefix=None, loc_str=None, root_dir=None,
                     for c in cube_list])
         )
 
-    if start_time is None or end_time is None:
-        start_time, end_time = get_common_time_overlap(cube_list, 'union')
     if datatype in ['timeseries', 'timeprofile']:
+        if start_time is None or end_time is None:
+            start_time, end_time = get_common_time_overlap(cube_list, 'union')
         date_str = '_'.join(
             [d.strftime('%Y-%m-%d') for d in [start_time, end_time]])
     else:
+        start_time = min([get_cube_datetime(c, 0) for c in cube_list])
         date_str = start_time.strftime('%Y-%m-%d')
 
     imgfile = '_'.join((prefix, loc_str, var_str, date_str))
