@@ -16,9 +16,6 @@ data_id_list = [
 
 var_list = ['temp', 'psal']
 
-start_time = datetime.datetime(2016, 6, 1)
-end_time = datetime.datetime(2018, 7, 1)
-
 for var in var_list:
 
     dataset_list = []

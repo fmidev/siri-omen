@@ -42,10 +42,9 @@ def extract_profile(model_profile, obs_profile, interpolate_depth=False):
     m_prof = m.interpolate(target, scheme)
 
     def _drop_bad_values(c):
+        valid_ix = numpy.isfinite(c.data)
         if numpy.ma.is_masked(c.data):
-            valid_ix = ~c.mask
-        else:
-            valid_ix = numpy.isfinite(c.data)
+            valid_ix *= ~c.data.mask
         return m_prof[valid_ix]
 
     m_prof = _drop_bad_values(m_prof)
@@ -59,25 +58,6 @@ def extract_profile(model_profile, obs_profile, interpolate_depth=False):
 
     return m_prof
 
-
-# --------
-# o = load_cube('ctdcast/F33/ctdcast_F33_2016-08-06.nc', 'sea_water_salinity')
-# m = nemo_reader.load_nemo_output('stations/F33/station_F33_201608-201608.nc', 'sea_water_practical_salinity')
-#
-# print(o)
-# print(m)
-#
-# m_prof = extract_profile(m, o)
-# print(m_prof)
-#
-# print(m_prof.coord('depth').points)
-# print(m_prof.data)
-#
-# print(o.coord('depth').points)
-# print(o.data)
-#
-# exit(0)
-# --------
 
 for var in var_list:
     dataset = read_dataset(dataset_id, 'timeprofile', var)
