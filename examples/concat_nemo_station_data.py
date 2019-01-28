@@ -3,7 +3,7 @@ Read Nemo 4.0 station output files and store them as timeprofile files.
 """
 from siri_omen import *
 
-dataset_id = 'run002'
+dataset_id = 'run001'
 var_list = ['temp', 'psal', 'slev']
 
 search_pattern = '../{:}/run_201*/station_*.nc'.format(dataset_id)

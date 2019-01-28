@@ -33,10 +33,10 @@ for var in var_list:
             datatype = 'timeseries'
             outdir = os.path.join('plots', data_id_str, datatype, var)
             save_timeseries_figure(cube_list,
-                                output_dir=outdir,
-                                alpha=0.7,
-                                start_time=start_time,
-                                end_time=end_time,
-                                time_extent='intersection')
+                                   output_dir=outdir,
+                                   alpha=0.7,
+                                   start_time=start_time,
+                                   end_time=end_time,
+                                   time_extent='intersection')
         except Exception:
             pass
