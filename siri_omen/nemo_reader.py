@@ -513,4 +513,12 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
                                                standard_name='depth',
                                                units='m')
                 cube.add_aux_coord(dep_dim, None)
+            else:
+                # remove masked depth points
+                i_time = cube.coord_dims('time')[0]
+                i_depth = cube.coord_dims('depth')[0]
+                good_depths = numpy.isfinite(cube.data).any(axis=i_time)
+                select = [slice(None, None, None)] * len(cube.shape)
+                select[i_depth] = good_depths
+                cube = cube[tuple(select)]
             utility.save_cube(cube)
