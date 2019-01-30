@@ -282,16 +282,17 @@ def generate_img_filename(cube_list, prefix=None, loc_str=None, root_dir=None,
     if prefix is None:
         prefix = map_short_datatype[datatype]
 
-    var_str = '-'.join(
-        unique([map_var_short_name.get(c.standard_name, c.standard_name)
-                for c in cube_list])
-    )
+    var_list = [map_var_short_name.get(c.standard_name, c.standard_name)
+                for c in cube_list]
+    var_list = sorted(unique(var_list))
+    var_str = '-'.join(var_list)
+
     if loc_str is None:
-        loc_str = '-'.join(
-            unique([map_var_short_name.get(c.attributes['location_name'],
+        loc_list = [map_var_short_name.get(c.attributes['location_name'],
                                            c.attributes['location_name'])
-                    for c in cube_list])
-        )
+                    for c in cube_list]
+        loc_list = sorted(unique(loc_list))
+        loc_str = '-'.join(loc_list)
 
     if datatype in ['timeseries', 'timeprofile']:
         if start_time is None or end_time is None:
@@ -306,7 +307,8 @@ def generate_img_filename(cube_list, prefix=None, loc_str=None, root_dir=None,
     imgfile += '.png'
 
     if root_dir is None:
-        id_list = unique([c.attributes['dataset_id'] for c in cube_list])
+        id_list = [c.attributes['dataset_id'] for c in cube_list]
+        id_list = sorted(unique(id_list))
         data_id_str = '-'.join(id_list)
         root_dir = os.path.join('plots', data_id_str, datatype, var_str)
 
