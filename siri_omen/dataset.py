@@ -56,7 +56,9 @@ def read_dataset(dataset_id, datatype, variable,
     return d
 
 
-def find_station_pairs(*dataset_list, dist_threshold=0.1, time_threshold=None):
+def find_station_pairs(*dataset_list, dist_threshold=0.1,
+                       time_overlap=True,
+                       time_threshold=None):
     """
     Finds coinciding stations in the given datasets.
 
@@ -82,12 +84,15 @@ def find_station_pairs(*dataset_list, dist_threshold=0.1, time_threshold=None):
     for dataset in dataset_list[1:]:
         args = get_loc_coords(dataset)
         for qkey, qlon, qlat in zip(*args):
-            dist_list, ix_list = tree.query([qlon, qlat], k=10)
+            dist_list, ix_list = tree.query([qlon, qlat], k=80)
             for dist, ix in zip(dist_list, ix_list):
                 if dist < dist_threshold:
                     src_key = keys[ix]
                     src_cube = src_dataset[src_key]
                     paired_cube = dataset[qkey]
+                    overlap = utility.check_cube_overlap(src_cube, paired_cube)
+                    if time_overlap and not overlap:
+                        continue
                     if isinstance(paired_cube.data, numpy.ma.MaskedArray) \
                             and numpy.all(paired_cube.data.mask):
                         # if all data is bad, skip
@@ -102,6 +107,7 @@ def find_station_pairs(*dataset_list, dist_threshold=0.1, time_threshold=None):
                         keys[ix], qkey, dist))
                     src_id = src_cube.attributes['dataset_id']
                     pair_id = paired_cube.attributes['dataset_id']
-                    pairs[src_key][src_id] = src_cube
-                    pairs[src_key][pair_id] = paired_cube
+                    key = qkey + ':' + src_key
+                    pairs[key][src_id] = src_cube
+                    pairs[key][pair_id] = paired_cube
     return pairs
