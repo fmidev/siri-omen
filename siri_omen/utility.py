@@ -126,6 +126,15 @@ def assert_cube_valid_data(cube):
     assert numpy.isfinite(cube.data).any(), 'All data is nan or inf'
 
 
+def check_cube_overlap(one, two):
+    st1 = get_cube_datetime(one, 0)
+    et1 = get_cube_datetime(one, -1)
+    st2 = get_cube_datetime(two, 0)
+    et2 = get_cube_datetime(two, -1)
+    overlap = st1 < et2 and st2 < et1
+    return overlap
+
+
 def constrain_cube_time(cube, start_time=None, end_time=None):
     """
     Constrain time axis between start_time and end_time
