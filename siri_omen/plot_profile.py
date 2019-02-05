@@ -3,12 +3,12 @@ Vertical profile plotting routines
 """
 import numpy
 import matplotlib.pyplot as plt
-import iris.quickplot as qplt
 import os
 from . import utility
 
 
 def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
+                 plot_style='line',
                  title=None, **kwargs):
     """
     Plots vertical profile objects in the given axes.
@@ -20,14 +20,36 @@ def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
     def get_label(cube, attr_name):
         return cube.attributes.get(attr_name)
 
-    for c in cube_list:
+    if isinstance(plot_style, str):
+        style_list = [plot_style] * len(cube_list)
+    else:
+        style_list = plot_style
+
+    for c, style in zip(cube_list, style_list):
         label = get_label(c, label_attr)
         if isinstance(c.data, numpy.ma.MaskedArray) \
                 and numpy.all(c.data.mask):
             # if all data is bad, skip
             continue
         depth_coord = c.coord('depth')
-        qplt.plot(c, depth_coord, axes=ax, label=label, **kwargs)
+        if not depth_coord.has_bounds():
+            depth_coord.guess_bounds()
+        if style == 'cell':
+            depth = depth_coord.bounds
+            vals = numpy.tile(c.data[:, numpy.newaxis], (1, 2))
+            assert vals.shape == depth.shape
+            ax.plot(vals.ravel(), depth.ravel(), label=label, **kwargs)
+        elif style == 'point':
+            kw = dict(kwargs)
+            kw['linestyle'] = 'none'
+            kw['marker'] = '.'
+            ax.plot(c.data, depth_coord.points, label=label, **kw)
+        else:
+            ax.plot(c.data, depth_coord.points, label=label, **kwargs)
+        xlabel = '{:} / {:}'.format(c.name().replace('_', ' ').capitalize(), c.units)
+        ax.set_xlabel(xlabel)
+        ylabel = '{:} / {:}'.format(depth_coord.name().capitalize(), depth_coord.units)
+        ax.set_ylabel(ylabel)
     plt.grid(True)
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))
     if xlim is not None:
