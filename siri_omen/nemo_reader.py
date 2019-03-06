@@ -18,6 +18,10 @@ map_nemo_standard_name = {
     'sea_water_practical_salinity': 'sea_water_practical_salinity',
     'water_surface_height_above_reference_datum':
         'sea_surface_height_above_geoid',
+    'specific_turbulent_kinetic_energy_of_sea_water':
+        'turbulent_kinetic_energy',
+    'specific_turbulent_kinetic_energy_dissipation_in_sea_water':
+        'turbulent_kinetic_energy_dissipation',
 }
 
 # reverse map: standard_name -> short_name
@@ -222,15 +226,26 @@ class NemoStationFileReader(NemoFileReader):
                 kw = {}
                 if var_name is not None:
                     kw['var_name'] = var_name
-                c = load_nemo_output(f, variable, **kw)
-                cube_list.append(c)
+                try:
+                    c = load_nemo_output(f, variable, **kw)
+                    cube_list.append(c)
+                except AssertionError as e:
+                    print('Reading failed: {:}'.format(f))
+                    print(e)
+            if len(cube_list) == 0:
+                print('Reading failed: {:}'.format(key))
+                continue
             equalise_attributes(cube_list)
             cube = cube_list.concatenate_cube()
             cube.attributes['dataset_id'] = self.dataset_id
             cube.attributes.pop('name', None)
             cube.attributes['location_name'] = meta['location_name']
             # use correct standard name
-            cube.standard_name = map_nemo_sname_to_standard[cube.standard_name]
+            sname = cube.standard_name
+            if sname is None:
+                sname = cube.long_name
+            assert sname is not None
+            cube.standard_name = map_nemo_sname_to_standard.get(sname, sname)
             cube = utility.drop_singleton_dims(cube)
             try:
                 utility.assert_cube_metadata(cube)
@@ -499,7 +514,8 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
                                     dataset_id=dataset_id,
                                     verbose=True)
     for var in var_list:
-        nemo_var = map_nemo_standard_name[utility.map_var_standard_name[var]]
+        sname = utility.map_var_standard_name[var]
+        nemo_var = map_nemo_standard_name.get(sname, sname)
         var_name = nemo_ncvar_name.get(var)
         dataset = nreader.get_dataset(nemo_var, var_name=var_name)
 
