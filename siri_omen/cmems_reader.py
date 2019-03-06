@@ -29,6 +29,16 @@ def _get_depth_coord(input_file, var):
     return depth_coord, valid_mask
 
 
+def _get_location_name(cube):
+    if 'platform_name' in cube.attributes:
+        location_name = cube.attributes['platform_name']
+    elif 'platform_code' in cube.attributes:
+        location_name = cube.attributes['platform_code']
+    else:
+        location_name = cube.attributes['site_code']
+    return location_name
+
+
 def read_cmems_file(input_file, var, start_time=None, end_time=None,
                     verbose=False):
     """
@@ -49,7 +59,7 @@ def read_cmems_file(input_file, var, start_time=None, end_time=None,
             # filter bad values
             cube = cube[valid_mask, :]
 
-    location_name = cube.attributes['site_code']
+    location_name = _get_location_name(cube)
     assert not location_name.isspace(), \
         'Bad location name "{:}" in {:}'.format(location_name, input_file)
 
@@ -106,7 +116,7 @@ def import_cmems_timeseries(dataset_id,
             cube_list = read_cmems_file(f, standard_name, start_time, end_time,
                                         verbose=verbose)
             for cube in cube_list:
-                location_name = cube.attributes['site_code']
+                location_name = _get_location_name(cube)
                 depth_str = utility.get_depth_sring(cube)
                 key = '-'.join([location_name, depth_str])
                 cube.attributes['location_name'] = location_name
@@ -114,8 +124,8 @@ def import_cmems_timeseries(dataset_id,
                 utility.assert_cube_metadata(cube)
                 utility.assert_cube_valid_data(cube)
                 all_cubes[key].append(cube)
-        except AssertionError:
-            pass
+        except AssertionError as e:
+            print(e)
         except ValueError as e:
             print('Reading file {:} failed.'.format(f))
             print(e)
