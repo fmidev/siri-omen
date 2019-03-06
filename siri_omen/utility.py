@@ -26,6 +26,13 @@ map_var_standard_name = {
     'wdir': 'wind_to_direction',
     'wspd': 'wind_speed',
     'slev': 'water_surface_height_above_reference_datum',
+    'tke': 'specific_turbulent_kinetic_energy_of_sea_water',
+    'eps': 'specific_turbulent_kinetic_energy_dissipation_in_sea_water',
+    'vdiff': 'ocean_vertical_heat_diffusivity',
+    'vvisc': 'ocean_vertical_momentum_diffusivity',
+    'u': 'sea_water_x_velocity',
+    'v': 'sea_water_y_velocity',
+    'w': 'upward_sea_water_velocity',
 }
 
 # reverse map: standard_name -> short_name
