@@ -14,6 +14,19 @@ __all__ = [
     'save_timeprofile_figure',
     ]
 
+log_scale_vars = [
+    'specific_turbulent_kinetic_energy_of_sea_water',
+    'specific_turbulent_kinetic_energy_dissipation_in_sea_water',
+    'ocean_vertical_heat_diffusivity',
+    'ocean_vertical_momentum_diffusivity',
+]
+
+symmetric_vars = [
+    'sea_water_x_velocity',
+    'sea_water_y_velocity',
+    'upward_sea_water_velocity',
+]
+
 
 def get_grid(cube, coordname):
     coord = cube.coord(coordname)
@@ -35,6 +48,7 @@ def get_plot_time(cube):
 
 def plot_timeprofile(cube, ax, title=None,
                      start_time=None, end_time=None,
+                     log_scale=False, symmetric_scale=False,
                      cmap=None, vmin=None, vmax=None, colorbar=True):
     """
     Plot sigle cube in given axes.
@@ -48,7 +62,30 @@ def plot_timeprofile(cube, ax, title=None,
         _cube = cube
     z = -get_grid(_cube, 'depth')
     t = get_plot_time(_cube)
-    p = ax.pcolormesh(t, z, _cube.data.T, vmin=vmin, vmax=vmax, cmap=cmap)
+
+    _log_scale = log_scale or _cube.standard_name in log_scale_vars
+    _symmetric_scale = symmetric_scale  or _cube.standard_name in symmetric_vars
+
+    if vmin is None:
+        vmin = _cube.data.min()
+    if vmax is None:
+        vmax = _cube.data.max()
+
+    if _log_scale:
+        vmin = max(vmin, 1e-12)
+        vmax = max(vmax, 1e-12)
+
+    if _symmetric_scale:
+        abs_lim = max(abs(vmin), abs(vmax))
+        vmin = -abs_lim
+        vmax = abs_lim
+
+    norm = None
+    if _log_scale:
+        norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
+
+    p = ax.pcolormesh(t, z, _cube.data.T, vmin=vmin, vmax=vmax, cmap=cmap,
+                      norm=norm)
     loc = matplotlib.dates.AutoDateLocator()
     fmt = matplotlib.dates.AutoDateFormatter(loc)
     ax.xaxis.set_major_locator(loc)
@@ -82,6 +119,8 @@ def make_timeprofile_plot(cube_list, **kwargs):
     plot_height = 3.5
     fig = plt.figure(figsize=(12, ncubes*plot_height))
     ax_list = fig.subplots(ncubes, 1, sharex=True, sharey=True)
+    if ncubes == 1:
+        ax_list = [ax_list]
 
     vmax = numpy.min([c.data.min() for c in cube_list])
     if 'vmin' not in kwargs or kwargs['vmin'] is None:
