@@ -9,6 +9,7 @@ from . import utility
 
 
 def read_dataset(dataset_id, datatype, variable,
+                 location_name=None,
                  start_time=None, end_time=None, verbose=False):
     """
     Read files using pattern
@@ -33,9 +34,11 @@ def read_dataset(dataset_id, datatype, variable,
     print('Reading dataset: {:} {:} {:}'.format(
         dataset_id, datatype, variable))
     d = {}
+    if location_name is None:
+        location_name = '*'
     pattern = '{dataset_id:}/{datatype:}/{location_name:}/{var:}/*.nc'.format(
         dataset_id=dataset_id, datatype=datatype,
-        location_name='*', var=variable)
+        location_name=location_name, var=variable)
     if verbose:
         print('Search pattern: {:}'.format(pattern))
     file_list = glob.glob(pattern)
@@ -58,11 +61,14 @@ def read_dataset(dataset_id, datatype, variable,
 
 def find_station_pairs(*dataset_list, dist_threshold=0.1,
                        time_overlap=True,
-                       time_threshold=None):
+                       unique_pairs=True,
+                       time_threshold=None,
+                       verbose=False):
     """
     Finds coinciding stations in the given datasets.
 
     """
+    assert len(dataset_list) >= 2, 'at least two dataset are needed'
 
     def get_loc_coords(dataset):
         keys = list(dataset.keys())
@@ -84,8 +90,14 @@ def find_station_pairs(*dataset_list, dist_threshold=0.1,
     for dataset in dataset_list[1:]:
         args = get_loc_coords(dataset)
         for qkey, qlon, qlat in zip(*args):
+            if verbose:
+                print('query: {:}'.format(qkey))
             dist_list, ix_list = tree.query([qlon, qlat], k=80)
             for dist, ix in zip(dist_list, ix_list):
+                if ix >= len(src_dataset):
+                    continue
+                if verbose:
+                    print(' candidate: {:}'.format(keys[ix]))
                 if dist < dist_threshold:
                     src_key = keys[ix]
                     src_cube = src_dataset[src_key]
@@ -107,7 +119,12 @@ def find_station_pairs(*dataset_list, dist_threshold=0.1,
                         keys[ix], qkey, dist))
                     src_id = src_cube.attributes['dataset_id']
                     pair_id = paired_cube.attributes['dataset_id']
-                    key = qkey + ':' + src_key
+                    if unique_pairs:
+                        # add every pair separately
+                        key = qkey + ':' + src_key
+                    else:
+                        # add all entries that match with the query
+                        key = src_key
                     pairs[key][src_id] = src_cube
                     pairs[key][pair_id] = paired_cube
     return pairs
