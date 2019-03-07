@@ -33,6 +33,9 @@ map_var_standard_name = {
     'u': 'sea_water_x_velocity',
     'v': 'sea_water_y_velocity',
     'w': 'upward_sea_water_velocity',
+    'icearea': 'sea_ice_area',
+    'iceextent': 'sea_ice_extent',
+    'icevol': 'sea_ice_volume',
 }
 
 # reverse map: standard_name -> short_name
