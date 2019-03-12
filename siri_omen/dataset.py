@@ -63,6 +63,7 @@ def find_station_pairs(*dataset_list, dist_threshold=0.1,
                        time_overlap=True,
                        unique_pairs=True,
                        time_threshold=None,
+                       match_loc_name=False,
                        verbose=False):
     """
     Finds coinciding stations in the given datasets.
@@ -98,8 +99,11 @@ def find_station_pairs(*dataset_list, dist_threshold=0.1,
                     continue
                 if verbose:
                     print(' candidate: {:}'.format(keys[ix]))
-                if dist < dist_threshold:
-                    src_key = keys[ix]
+                src_key = keys[ix]
+                same_loc_name = (
+                    src_dataset[src_key].attributes['location_name'] ==
+                    dataset[qkey].attributes['location_name'])
+                if dist < dist_threshold or (match_loc_name and same_loc_name):
                     src_cube = src_dataset[src_key]
                     paired_cube = dataset[qkey]
                     overlap = utility.check_cube_overlap(src_cube, paired_cube)
