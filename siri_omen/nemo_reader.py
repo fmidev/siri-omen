@@ -472,7 +472,8 @@ def fix_cube_coordinates(cube):
     cube.add_dim_coord(time_dim, time_ix)
 
 
-def load_nemo_output(ncfile, standard_name, var_name=None, **kwargs):
+def load_nemo_output(ncfile, standard_name, var_name=None,
+                     force_real_data=False, **kwargs):
     """
     Load a field identified with standard_name from NEMO output file.
 
@@ -492,10 +493,11 @@ def load_nemo_output(ncfile, standard_name, var_name=None, **kwargs):
     assert len(cube_list) == 1, 'Multiple fields found'
     cube = cube_list[0]
     fix_cube_coordinates(cube)
-    # read data to memory
-    cube.data
-    for c in cube.coords():
-        c.points
+    if force_real_data:
+        # read data to memory
+        cube.data
+        for c in cube.coords():
+            c.points
     return cube
 
 
