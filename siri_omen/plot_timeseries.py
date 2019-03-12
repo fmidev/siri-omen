@@ -8,6 +8,13 @@ import os
 from . import utility
 
 
+plot_unit = {
+    'icearea': 'km2',
+    'iceextent': 'km2',
+    'icevol': 'km3',
+}
+
+
 def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
                     title=None, time_extent=None,
                     start_time=None, end_time=None, **kwargs):
@@ -28,7 +35,13 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
                 and numpy.all(c.data.mask):
             # if all data is bad, skip
             continue
-        qplt.plot(c, axes=ax, label=label, **kwargs)
+        var = utility.map_var_short_name[_c.standard_name]
+        if var in plot_unit:
+            _c = c.copy()
+            _c.convert_units(plot_unit[var])
+        else:
+            _c = _c
+        qplt.plot(_c, axes=ax, label=label, **kwargs)
     if start_time is None and end_time is None and time_extent is not None:
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
