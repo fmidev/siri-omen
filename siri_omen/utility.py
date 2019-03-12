@@ -3,6 +3,7 @@ Misc utility functions
 """
 import os
 import iris
+from iris.experimental.equalise_cubes import equalise_attributes
 import numpy
 from collections import OrderedDict
 import datetime
@@ -384,6 +385,19 @@ def align_cubes(first, second):
     m2 = m.interpolate([(coord_name, o_time_coord.points)], scheme)
 
     return m2
+
+
+def concatenate_cubes(cube_list):
+    """
+    Concatenate multiple cubes into one.
+
+    Variables must be compatible, e.g. cubes must contain non-overlapping and
+    increasing time stamps.
+    """
+    list = iris.cube.CubeList(cube_list)
+    equalise_attributes(list)
+    cube = list.concatenate_cube()
+    return cube
 
 
 def compute_cube_statistics(reference, predicted):
