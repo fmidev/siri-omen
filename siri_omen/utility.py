@@ -213,6 +213,8 @@ def get_cube_datatype(cube):
         datatype = 'timeprofile'
     else:
         print(cube)
+        print('has time : {:} n={:}'.format(has_time, ntime if has_time else None))
+        print('has depth: {:} n={:}'.format(has_depth, ndepth if has_depth else None))
         raise NotImplementedError('Unknown cube data type')
     return datatype
 
