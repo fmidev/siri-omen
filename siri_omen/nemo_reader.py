@@ -5,7 +5,6 @@ All methods that are NEMO specific should be within this module.
 """
 import numpy
 from scipy.spatial import cKDTree as KDTree
-from iris.experimental.equalise_cubes import equalise_attributes
 import cf_units
 import iris
 import netCDF4
@@ -235,8 +234,8 @@ class NemoStationFileReader(NemoFileReader):
             if len(cube_list) == 0:
                 print('Reading failed: {:}'.format(key))
                 continue
-            equalise_attributes(cube_list)
-            cube = cube_list.concatenate_cube()
+            cube = utility.concatenate_cubes(cube_list)
+            cube_list.concatenate_cube()
             cube.attributes['dataset_id'] = self.dataset_id
             cube.attributes.pop('name', None)
             cube.attributes['location_name'] = meta['location_name']

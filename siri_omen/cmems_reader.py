@@ -5,7 +5,6 @@ import numpy
 import glob
 from collections import defaultdict
 import iris
-from iris.experimental.equalise_cubes import equalise_attributes
 from . import utility
 
 __all__ = [
@@ -134,9 +133,8 @@ def import_cmems_timeseries(dataset_id,
     for k in all_cubes:
         cube_list = all_cubes[k]
         # concatenate times
-        equalise_attributes(cube_list)
         try:
-            cube = cube_list.concatenate_cube()
+            cube = utility.concatenate_cubes(cube_list)
         except Exception as e:
             print('Concatenation failed for {:}'.format(k))
             print(e)
