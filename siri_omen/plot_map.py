@@ -1,17 +1,12 @@
 """
 Make 2D map plots.
 """
-import os
 import numpy
 import matplotlib.pyplot as plt
-from matplotlib.projections import PolarAxes
-import mpl_toolkits.axisartist.floating_axes as floating_axes
-import mpl_toolkits.axisartist.grid_finder as grid_finder
 import cartopy.crs as ccrs
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import cartopy.feature as cfeature
 from .plot_taylor_diag import get_point_style_cycler
-from . import utility
 from matplotlib.tri import Triangulation
 
 
@@ -54,7 +49,7 @@ class GeographicPlot(object):
                     transform=None,
                     **kwargs):
         if transform is None:
-            transform=ccrs.Geodetic()
+            transform = ccrs.Geodetic()
         if label_to_legend:
             kwargs.setdefault('label', label)
         else:
@@ -75,13 +70,13 @@ class GeographicPlot(object):
 
     def add_text(self, x, y, text, transform=None, **kwargs):
         if transform is None:
-            transform=ccrs.Geodetic()
+            transform = ccrs.Geodetic()
         self.ax.text(x, y, text, transform=transform, **kwargs)
 
-    def add_unstructured_mesh(self, x=None, y=None, connectivity=None, tri=None,
-                 transform=None, **kwargs):
+    def add_unstructured_mesh(self, x=None, y=None, connectivity=None,
+                              tri=None, transform=None, **kwargs):
         if transform is None:
-            transform=ccrs.Geodetic()
+            transform = ccrs.Geodetic()
         has_xyc = x is not None and y is not None and connectivity is not None
         has_tri = tri is not None
         msg = 'either x, y, connectivity or tri arguments must be provided'
@@ -101,7 +96,7 @@ class GeographicPlot(object):
                                levels=31,
                                **kwargs):
         if transform is None:
-            transform=ccrs.Geodetic()
+            transform = ccrs.Geodetic()
         has_xyc = x is not None and y is not None and connectivity is not None
         has_tri = tri is not None
         msg = 'either x, y, connectivity or tri arguments must be provided'
@@ -113,7 +108,8 @@ class GeographicPlot(object):
         if not has_tri:
             tri = Triangulation(x, y, connectivity)
 
-        p = self.ax.tricontourf(tri, values, levels, transform=transform, **kwargs)
+        p = self.ax.tricontourf(tri, values, levels, transform=transform,
+                                **kwargs)
         return p
 
     def add_feature(self, feature_name, scale='50m', **kwargs):

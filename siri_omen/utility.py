@@ -163,8 +163,10 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     time_coord = cube.coord('time')
     st = time_coord.units.date2num(start_time)
     et = time_coord.units.date2num(end_time)
-    assert et >= time_coord.points[0], 'No overlapping time period found. end_time before first time stamp.'
-    assert st <= time_coord.points[-1], 'No overlapping time period found. start_time after last time stamp.'
+    assert et >= time_coord.points[0], \
+        'No overlapping time period found. end_time before first time stamp.'
+    assert st <= time_coord.points[-1], \
+        'No overlapping time period found. start_time after last time stamp.'
     time_constrain = iris.Constraint(
         coord_values={'time': lambda t: st <= t.point <= et})
     new_cube = cube.extract(time_constrain)
@@ -196,8 +198,10 @@ def get_cube_datatype(cube):
         datatype = 'timeprofile'
     else:
         print(cube)
-        print('has time : {:} n={:}'.format(has_time, ntime if has_time else None))
-        print('has depth: {:} n={:}'.format(has_depth, ndepth if has_depth else None))
+        print('has time : {:} n={:}'.format(
+            has_time, ntime if has_time else None))
+        print('has depth: {:} n={:}'.format(
+            has_depth, ndepth if has_depth else None))
         raise NotImplementedError('Unknown cube data type')
     return datatype
 

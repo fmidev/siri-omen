@@ -5,13 +5,8 @@ Target diagram implementation.
 import os
 import numpy
 import matplotlib.pyplot as plt
-from matplotlib.projections import PolarAxes
-import mpl_toolkits.axisartist.floating_axes as floating_axes
-import mpl_toolkits.axisartist.grid_finder as grid_finder
-from cycler import cycler
 from . import utility
-from . import statistics
-from .plot_taylor_diag import get_point_style_cycler, get_cube_stats
+from .plot_taylor_diag import get_point_style_cycler
 from .plot_taylor_diag import _compute_pairwise_stats
 from . import plot_taylor_diag as taylor
 

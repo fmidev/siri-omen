@@ -46,9 +46,11 @@ def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
             ax.plot(c.data, depth_coord.points, label=label, **kw)
         else:
             ax.plot(c.data, depth_coord.points, label=label, **kwargs)
-        xlabel = '{:} / {:}'.format(c.name().replace('_', ' ').capitalize(), c.units)
+        xlabel = '{:} / {:}'.format(
+            c.name().replace('_', ' ').capitalize(), c.units)
         ax.set_xlabel(xlabel)
-        ylabel = '{:} / {:}'.format(depth_coord.name().capitalize(), depth_coord.units)
+        ylabel = '{:} / {:}'.format(
+            depth_coord.name().capitalize(), depth_coord.units)
         ax.set_ylabel(ylabel)
     plt.grid(True)
     plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))

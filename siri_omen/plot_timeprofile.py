@@ -64,7 +64,7 @@ def plot_timeprofile(cube, ax, title=None,
     t = get_plot_time(_cube)
 
     _log_scale = log_scale or _cube.standard_name in log_scale_vars
-    _symmetric_scale = symmetric_scale  or _cube.standard_name in symmetric_vars
+    _symmetric_scale = symmetric_scale or _cube.standard_name in symmetric_vars
 
     if vmin is None:
         vmin = _cube.data.min()
@@ -122,7 +122,6 @@ def make_timeprofile_plot(cube_list, **kwargs):
     if ncubes == 1:
         ax_list = [ax_list]
 
-    vmax = numpy.min([c.data.min() for c in cube_list])
     if 'vmin' not in kwargs or kwargs['vmin'] is None:
         kwargs['vmin'] = numpy.min([numpy.nanmin(c.data) for c in cube_list])
     if 'vmax' not in kwargs or kwargs['vmax'] is None:
