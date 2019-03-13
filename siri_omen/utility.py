@@ -155,37 +155,19 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     :returns: an iris Cube instance
     :raises: AssertionError if requested time period out of range
     """
-    if start_time is None and end_time is None:
-        return cube.copy()
-    time = cube.coord('time')
-    assert time in cube.dim_coords, 'Time is not a DimCoord instance'
-    time_dim_index = cube.coord_dims('time')
-    assert len(time_dim_index) == 1
-    time_dim_index = time_dim_index[0]
-
-    time_array = time.points
-    if start_time is not None:
-        t_st = time.units.date2num(start_time)
-    else:
-        t_st = time_array[0]
-    if end_time is not None:
-        t_et = time.units.date2num(end_time)
-    else:
-        t_et = time_array[-1]
-
-    tix = (time_array <= t_et) * (time_array >= t_st)
-    assert numpy.any(tix), 'No suitable time stamps found'
-
-    ndims = len(cube.shape)
-    if ndims == 1:
-        slice_obj = tix
-    else:
-        slice_obj = [slice(None, None, None)] * ndims
-        slice_obj[time_dim_index] = tix
-        slice_obj = tuple(slice_obj)
-
-    # slice me
-    new_cube = cube[slice_obj]
+    if start_time is None:
+        start_time = get_cube_datetime(cube, 0)
+    if end_time is None:
+        end_time = get_cube_datetime(cube, -1)
+    # convert to float in cube units
+    time_coord = cube.coord('time')
+    st = time_coord.units.date2num(start_time)
+    et = time_coord.units.date2num(end_time)
+    assert et >= time_coord.points[0], 'No overlapping time period found. end_time before first time stamp.'
+    assert st <= time_coord.points[-1], 'No overlapping time period found. start_time after last time stamp.'
+    time_constrain = iris.Constraint(
+        coord_values={'time': lambda t: st <= t.point <= et})
+    new_cube = cube.extract(time_constrain)
     return new_cube
 
 
