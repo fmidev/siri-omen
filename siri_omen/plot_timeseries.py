@@ -35,12 +35,12 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
                 and numpy.all(c.data.mask):
             # if all data is bad, skip
             continue
-        var = utility.map_var_short_name[_c.standard_name]
+        var = utility.map_var_short_name[c.standard_name]
         if var in plot_unit:
             _c = c.copy()
             _c.convert_units(plot_unit[var])
         else:
-            _c = _c
+            _c = c
         qplt.plot(_c, axes=ax, label=label, **kwargs)
     if start_time is None and end_time is None and time_extent is not None:
         start_time, end_time = utility.get_common_time_overlap(cube_list,
