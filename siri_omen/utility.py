@@ -210,7 +210,7 @@ def drop_singleton_dims(cube):
     """
     Extract all coordinates that have only one value.
     """
-    shape = cube.data.shape
+    shape = cube.shape
     extract = [0] * len(shape)
     for i, l in enumerate(shape):
         if l > 1:
