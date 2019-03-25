@@ -469,8 +469,10 @@ def fix_cube_coordinates(cube):
                                        standard_name='depth',
                                        units='m')
         z_dim_index = cube.coord_dims(c.long_name)[0]
+        z_coord.guess_bounds()
         cube.remove_coord(c.long_name)
         cube.add_dim_coord(z_coord, z_dim_index)
+        
 
     # convert time coordinate
     time_coord = cube.coords()[0]
