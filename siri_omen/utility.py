@@ -393,3 +393,21 @@ def compute_cube_statistics(reference, predicted):
     r = reference.data
     p = predicted_alinged.data
     return statistics.compute_statistics(r, p)
+
+
+def cube_volumes(cube):
+  """
+  caclulates volumes for each cell based on
+  lat,lon and depth axis.
+  returns a cube with same dimensions than 'cube',
+  with each cell having it's volume.
+  """
+
+  volumes=iris.analysis.cartography.area_weights(cube) #this gives the area of each cell.
+  cell_thickness=cube.coord('depth').bounds[:,1]-cube.coord('depth').bounds[:,0]
+  depth_coord=cube.coord_dims('depth')[0] #tells which axis is depth
+  new_shape=numpy.array(volumes.shape)#new shape has same dimensions than area.
+  new_shape[:]=1 #dimensions stay same, but each has just one entry.
+  new_shape[depth_coord]=volumes.shape[depth_coord] #depth axis is real lenght 
+  volumes=volumes*cell_thickness.reshape(new_shape) #
+  return volumes
