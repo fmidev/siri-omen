@@ -397,20 +397,17 @@ def remove_null_indices(in_cube):
     dimensions = list(range(len(dimension_lens)))
     for i, dimension in enumerate(dimension_lens):
         all_but_this = tuple(filter(lambda x: x != i, dimensions))
-        masks = [':']*len(dimension_lens)
+        # all_but_this list every axis, exept dimension
+        # used to flatten all the listed axis.
+        masks = [slice(None)]*len(dimension_lens)
+        # mask marks now all dimensions equvalent to [:,:,:,:]
         axis_mask = ~numpy.max(cube.data, axis=all_but_this).mask
-        masks[i] = 'axis_mask'
-        cut_command = 'cube=cube['
-        for c in masks:
-            cut_command += c+','
-        cut_command = cut_command[:-1]+']'  # :-1 here to remove last comma.
-        ldict = {'cube': cube, 'axis_mask': axis_mask}
-        exec(cut_command, globals(), ldict)
-        # this should cut the cube on
-        # current dimension,
-        # removing null areas.
-        cube = ldict['cube']
-    return ldict['cube']
+        masks[i] = axis_mask
+        # and this replaces one with the cropped boolean array.
+        cube=cube[tuple(masks)]
+        # then replace cube with the cropped one
+        #for this axis.
+    return cube
 
 
 def fix_cube_coordinates(cube):
