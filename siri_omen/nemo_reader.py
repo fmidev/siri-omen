@@ -383,29 +383,35 @@ class TimeSeriesExtractor():
         # make sure we comply with the required metadata policy
         utility.assert_cube_metadata(output)
         return output
+
+
 def remove_null_indices(in_cube):
     """
-    Searches dimensions which have only nulls, and trims the cube by removing those
+    Searches dimensions which have only nulls,
+    and trims the cube by removing those
     :arg cube: a Cube object representing a 2D or 3D NEMO output field.
     returns modified cube
     """
-    cube=in_cube.copy()
-    dimension_lens=cube.shape
-    dimensions=list(range(len(dimension_lens)))
-    for i,dimension in enumerate(dimension_lens):
-      all_but_this=tuple(filter(lambda x: x!=i,dimensions))
-      masks=[':']*len(dimension_lens)
-      axis_mask=~numpy.max(cube.data,axis=all_but_this).mask
-      masks[i]='axis_mask'
-      cut_command='cube=cube['
-      for c in masks:
-        cut_command+=c+','
-      cut_command=cut_command[:-1]+']'  # :-1 here to remove tha last comma from loop.
-      ldict={'cube':cube,'axis_mask':axis_mask}
-      exec(cut_command,globals(),ldict)   #which should cut the cube on current dimension,
-					  #removing null areas.
-      cube=ldict['cube']
+    cube = in_cube.copy()
+    dimension_lens = cube.shape
+    dimensions = list(range(len(dimension_lens)))
+    for i, dimension in enumerate(dimension_lens):
+        all_but_this = tuple(filter(lambda x: x != i, dimensions))
+        masks = [':']*len(dimension_lens)
+        axis_mask = ~numpy.max(cube.data, axis=all_but_this).mask
+        masks[i] = 'axis_mask'
+        cut_command = 'cube=cube['
+        for c in masks:
+            cut_command += c+','
+        cut_command = cut_command[:-1]+']'  # :-1 here to remove last comma.
+        ldict = {'cube': cube, 'axis_mask': axis_mask}
+        exec(cut_command, globals(), ldict)
+        # this should cut the cube on
+        # current dimension,
+        # removing null areas.
+        cube = ldict['cube']
     return ldict['cube']
+
 
 def fix_cube_coordinates(cube):
     """
@@ -472,7 +478,7 @@ def fix_cube_coordinates(cube):
         z_coord.guess_bounds()
         cube.remove_coord(c.long_name)
         cube.add_dim_coord(z_coord, z_dim_index)
-        
+
 
     # convert time coordinate
     time_coord = cube.coords()[0]
