@@ -385,7 +385,7 @@ class TimeSeriesExtractor():
         return output
 def remove_null_indices(in_cube):
     """
-    Searches dimenions which have only nulls, and trims the cube by removing those
+    Searches dimensions which have only nulls, and trims the cube by removing those
     :arg cube: a Cube object representing a 2D or 3D NEMO output field.
     returns modified cube
     """

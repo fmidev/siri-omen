@@ -397,7 +397,7 @@ def compute_cube_statistics(reference, predicted):
 
 def cube_volumes(cube):
   """
-  caclulates volumes for each cell based on
+  calculates volumes for each cell based on
   lat,lon and depth axis.
   returns a cube with same dimensions than 'cube',
   with each cell having it's volume.
