@@ -465,7 +465,7 @@ def cube_pressure(cube):
     # now weh have shape of same form than data,
     # with depth axis only longer than 1 cell.
     depth_grid = numpy.ones(cube.shape)
-    depth_grid= depth_grid*depth_coord.reshape(shape_of_depth)
+    depth_grid = depth_grid*depth_coord.reshape(shape_of_depth)
     # now depth is of same format than cube data
     # same should be done to latitude
     # (as TEOS-10 p_to_z uses lat and depth)
@@ -503,3 +503,36 @@ def cube_density(salinity, conservative_temperature, pressure=None):
         pressure = cube_pressure(salinity)
     density = gsw.rho(salinity.data, conservative_temperature.data, pressure)
     return density
+
+
+def cube_heat_content(salinity, temperature):
+    """
+    calculates the heat content for each cell on the cube
+
+    returns a cube with the content.
+    """
+    heat_content = temperature.copy()  # want to edit a separate entity.
+    # todo: check to ensure temperature in is either potential,
+    # or conservative temperature.
+
+    heat_content.convert_units('degC')
+    # convert to Conservative Temperature
+    if heat_content.name() in ['potential_temperature']:
+        heat_content.data = gsw.CT_from_pt(salinity.data, heat_content.data)
+    density = cube_density(salinity, heat_content)
+    volumes = cube_volumes(salinity).data
+    # either salinity or heat_content is fine above.
+    # Now we should have all that is needed, let's combine:
+    c0p = 3991.86795711963  # J/(kg K)
+    heat_content.convert_units('K')
+    heat_content.data = volumes*density*heat_content.data*c0p
+    # unit = m^3 * kg/M^3 * K * J/(kg K) = J
+    # from TEOS-10 manual:
+    # Calculation and use of the thermodynamics properties of seawater
+    #
+    # conservative_heat_content(S,t,p) = h0/c0p
+    # and c0p = 3991.867 957 119 63 J/(kgK)
+    heat_content.rename('heat_content')
+    heat_content.units = "J"
+
+    return heat_content
