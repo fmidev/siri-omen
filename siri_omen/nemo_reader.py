@@ -385,11 +385,12 @@ class TimeSeriesExtractor():
         return output
 
 
-def remove_null_indices(in_cube):
+def remove_null_indices(in_cube, fill_value=None):
     """
     Searches dimensions which have only nulls,
     and trims the cube by removing those
-    :arg cube: a Cube object representing a 2D or 3D NEMO output field.
+    :arg    cube: a Cube object representing a 2D or 3D NEMO output field.
+            fill_value: if not None, mask values matching fill_value
     returns modified cube
     """
     cube = in_cube.copy()
@@ -404,9 +405,11 @@ def remove_null_indices(in_cube):
         axis_mask = ~numpy.max(cube.data, axis=all_but_this).mask
         masks[i] = axis_mask
         # and this replaces one with the cropped boolean array.
-        cube=cube[tuple(masks)]
+        cube = cube[tuple(masks)]
         # then replace cube with the cropped one
-        #for this axis.
+        # for this axis.
+    if fill_value is not None:
+        cube.data.mask[cube.data.data == fill_value] = True
     return cube
 
 
@@ -439,7 +442,7 @@ def fix_cube_coordinates(cube):
         dim_coord = iris.coords.DimCoord(array, standard_name=name,
                                          units='degrees')
         return dim_coord
-   # FIXME get the coord indices from the metadata
+    # FIXME get the coord indices from the metadata
     lat_len, lon_len = cube.coord('latitude').shape
     lon_coord = _make_dim_coord('longitude', lon_len)
     lat_coord = _make_dim_coord('latitude', lat_len)
@@ -475,7 +478,6 @@ def fix_cube_coordinates(cube):
         z_coord.guess_bounds()
         cube.remove_coord(c.long_name)
         cube.add_dim_coord(z_coord, z_dim_index)
-
 
     # convert time coordinate
     time_coord = cube.coords()[0]

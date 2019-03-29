@@ -9,7 +9,7 @@ from collections import OrderedDict
 import datetime
 import pytz
 from . import statistics
-import gsw # TEOS-10
+import gsw  # TEOS-10
 
 # standard names for all used variables
 # based on CF standard and oceanSITES short variable names
@@ -396,18 +396,47 @@ def compute_cube_statistics(reference, predicted):
     return statistics.compute_statistics(r, p)
 
 
+def cube_cell_thicknesses(cube, return_dictionary=False):
+    """
+    calculates thicknesses for each depth on the cube.
+    as defaults returns it as an array,
+    if return_dictionary is set to True, returns dictionary,
+    with depth value as key for each thickness.
+    This could be used to get the thickness by giving the value from
+    the depth coordinate.
+    """
+    cell_thicknesses = cube.coord('depth').bounds[:, 1]\
+        - cube.coord('depth').bounds[:, 0]
+    if return_dictionary:
+        thickness_dictionary = {}
+        for d, t in zip(cube.coord('depth').points, cell_thicknesses):
+            thickness_dictionary[d] = t
+        return thickness_dictionary
+    else:
+        return cell_thicknesses
+
+
 def cube_volumes(cube):
     """
     calculates volumes for each cell based on
-    lat,lon and depth axis.
+    lat, lon and depth axis.
     returns a cube with same dimensions than 'cube',
     with each cell having it's volume.
     """
-    volumes = iris.analysis.cartography.area_weights(cube)
-    # this gives the area of each cell.
-    cell_thickness = cube.coord('depth').bounds[:, 1]\
-        - cube.coord('depth').bounds[:, 0]
-    depth_coord = cube.coord_dims('depth')[0]
+    # make a cube
+    volumes = cube.copy()
+    volumes.rename('volume')
+    volumes.units = 'm^3'
+    if 'invalid_units' in volumes.attributes.keys():
+        volumes.attributes.pop('invalid_units')  # cleanup
+    volumes.attributes['description'] = \
+        "cell volume"
+    volumes.coord('depth').convert_units('m')  # should be meters
+    volumes.data.data[:] = iris.analysis.cartography.area_weights(cube)
+    # data.data as we want to keep the original mask.
+
+    cell_thickness = cube_cell_thicknesses(volumes)
+    depth_coord = volumes.coord_dims('depth')[0]
     # tells which axis is depth
     new_shape = numpy.array(volumes.shape)
     # new shape has same dimensions than area.
@@ -415,7 +444,7 @@ def cube_volumes(cube):
     # dimensions stay same, but each has just one entry.
     new_shape[depth_coord] = volumes.shape[depth_coord]
     # depth axis is real lenght
-    volumes = volumes*cell_thickness.reshape(new_shape)
+    volumes.data.data[:] = volumes.data.data*cell_thickness.reshape(new_shape)
     return volumes
 
 
@@ -428,71 +457,49 @@ def cube_pressure(cube):
     """
     # First, lets form a depth axis we can multiply with:
     depth_index = cube.coord_dims('depth')[0]
-    depth_coord=numpy.array(cube.coord('depth').points)
+    depth_coord = numpy.array(cube.coord('depth').points)
     # depth_index is the index of depth axis.
     shape_of_depth = numpy.array(cube.shape)
-    shape_of_depth[:]=1
-    shape_of_depth[depth_index]=cube.shape[depth_index]
-    # now weh have shape of same form than data, 
+    shape_of_depth[:] = 1
+    shape_of_depth[depth_index] = cube.shape[depth_index]
+    # now weh have shape of same form than data,
     # with depth axis only longer than 1 cell.
     depth_grid = numpy.ones(cube.shape)
-    depth_grid = depth_grid*depth_coord.reshape(shape_of_depth)
+    depth_grid= depth_grid*depth_coord.reshape(shape_of_depth)
     # now depth is of same format than cube data
-    # same should be done to latitude 
+    # same should be done to latitude
     # (as TEOS-10 p_to_z uses lat and depth)
 
     # First, lets form a  atitudexis we can multiply with:
     latitude_index = cube.coord_dims('latitude')[0]
-    latitude_coord=numpy.array(cube.coord('latitude').points)
+    latitude_coord = numpy.array(cube.coord('latitude').points)
     # latitude_index is the index of latitude axis.
     shape_of_latitude = numpy.array(cube.shape)
-    shape_of_latitude[:]=1
-    shape_of_latitude[latitude_index]=cube.shape[latitude_index]
-    # now we have shape of same form than data, 
+    shape_of_latitude[:] = 1
+    shape_of_latitude[latitude_index] = cube.shape[latitude_index]
+    # now we have shape of same form than data,
     # with latitude axis only longer than 1 cell.
     latitude_grid = numpy.ones(cube.shape)
     latitude_grid = latitude_grid*latitude_coord.reshape(shape_of_latitude)
 
-    pressure = gsw.p_from_z(depth_grid,latitude_grid)
+    pressure = gsw.p_from_z(-1.0*depth_grid, latitude_grid)
+    # depth is multiplied by -1.0, as this wants height.
     # return value is numpy array of same size than input cells
     return pressure
 
 
-
-def cube_density(salinity,conservative_temperature,pressure=None):
+def cube_density(salinity, conservative_temperature, pressure=None):
     """
     calculates the density for each cell based on
     salinity and conservative temperature and pressure.
     Assumes all inputs to be same shape cubes
     if pressure is missing, calculates it from the others.
-    
+
     returns a cube with same dimensions than 'cube',
     with each cell having it's pressure.
     """
-    # First, lets form a depth axis we can multiply with:
-    depth_coord = cube.coord_dims('depth')[0]
-    # depth_coord is the index of depth axis.
-    shape_of_depth = numpy.array(cube.shape)
-    shape_of_depth[:]=1
-    shape_of_depth[depth_coord]=cube.shape[depth_coord]
-    # now weh have shape of same form than data, 
-    # with depth axis only longer than 1 cell.
-    depth_grid = numpy.ones(cube.shape)
-    depth_grid = depth_grid*depth_coord.reshape(shape_of_depth)
-    # now depth is of same format than cube data
-    # same should be done to latitude 
-    # (as TEOS-10 p_to_z uses lat and depth)
-
-    # First, lets form a  atitudexis we can multiply with:
-    latitude_coord = cube.coord_dims('latitude')[0]
-    # latitude_coord is the index of latitude axis.
-    shape_of_latitude = numpy.array(cube.shape)
-    shape_of_latitude[:]=1
-    shape_of_latitude[latitude_coord]=cube.shape[latitude_coord]
-    # now we have shape of same form than data, 
-    # with latitude axis only longer than 1 cell.
-    latitude_grid = numpy.ones(cube.shape)
-    latitude_grid = latitude_grid*latitude_coord.reshape(shape_of_latitude)
-
-    pressure = gsw.p_from_z(depth_grid,latitude_grid)
-    return pressure
+    # If no pressure field is provided, let's create it:
+    if pressure is None:
+        pressure = cube_pressure(salinity)
+    density = gsw.rho(salinity.data, conservative_temperature.data, pressure)
+    return density
