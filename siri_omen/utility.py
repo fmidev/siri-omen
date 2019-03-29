@@ -501,7 +501,14 @@ def cube_density(salinity, conservative_temperature, pressure=None):
     # If no pressure field is provided, let's create it:
     if pressure is None:
         pressure = cube_pressure(salinity)
-    density = gsw.rho(salinity.data, conservative_temperature.data, pressure)
+
+    # make a cube
+    density = salinity.copy()
+    density.rename('volume')
+    density.units = 'm^3'
+
+    density.data = gsw.rho(salinity.data, conservative_temperature.data, pressure)
+
     return density
 
 
@@ -519,7 +526,7 @@ def cube_heat_content(salinity, temperature):
     # convert to Conservative Temperature
     if heat_content.name() in ['potential_temperature']:
         heat_content.data = gsw.CT_from_pt(salinity.data, heat_content.data)
-    density = cube_density(salinity, heat_content)
+    density = cube_density(salinity, heat_content).data
     volumes = cube_volumes(salinity).data
     # either salinity or heat_content is fine above.
     # Now we should have all that is needed, let's combine:
