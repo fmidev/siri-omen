@@ -451,10 +451,14 @@ def cube_volumes(cube):
 def cube_pressure(cube):
     """
     calculates the pressure for each cell based on
-    lat and depth axis.
+    lat and depth axis. depth must be metres.
     returns a cube with same dimensions than 'cube',
     with each cell having it's pressure.
     """
+    # make a cube
+    pressure = cube.copy()
+    pressure.rename('pressure')
+    pressure.units = 'dbar'
     # First, lets form a depth axis we can multiply with:
     depth_index = cube.coord_dims('depth')[0]
     depth_coord = numpy.array(cube.coord('depth').points)
@@ -482,7 +486,7 @@ def cube_pressure(cube):
     latitude_grid = numpy.ones(cube.shape)
     latitude_grid = latitude_grid*latitude_coord.reshape(shape_of_latitude)
 
-    pressure = gsw.p_from_z(-1.0*depth_grid, latitude_grid)
+    pressure.data = gsw.p_from_z(-1.0*depth_grid, latitude_grid)
     # depth is multiplied by -1.0, as this wants height.
     # return value is numpy array of same size than input cells
     return pressure
@@ -494,7 +498,9 @@ def cube_density(salinity, conservative_temperature, pressure=None):
     salinity and conservative temperature and pressure.
     Assumes all inputs to be same shape cubes
     if pressure is missing, calculates it from the others.
-
+    
+    Assumes salinity to be absolute salinity, and
+    Temperature to be the conservative temperature.
     returns a cube with same dimensions than 'cube',
     with each cell having it's pressure.
     """
@@ -504,10 +510,10 @@ def cube_density(salinity, conservative_temperature, pressure=None):
 
     # make a cube
     density = salinity.copy()
-    density.rename('volume')
-    density.units = 'm^3'
+    density.rename('density')
+    density.units = 'kg m^-3'
 
-    density.data = gsw.rho(salinity.data, conservative_temperature.data, pressure)
+    density.data = gsw.rho(salinity.data, conservative_temperature.data, pressure.data)
 
     return density
 
@@ -515,6 +521,8 @@ def cube_density(salinity, conservative_temperature, pressure=None):
 def cube_heat_content(salinity, temperature):
     """
     calculates the heat content for each cell on the cube
+    salinity must be absolute salinity
+    temperature can be potential temperature or conservative temperature
 
     returns a cube with the content.
     """
