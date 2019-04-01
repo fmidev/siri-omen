@@ -17,6 +17,7 @@ plot_unit = {
 
 def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
                     title=None, time_extent=None,
+                    label_alias=None,
                     start_time=None, end_time=None, **kwargs):
     """
     Plots time series objects in the given axes.
@@ -31,6 +32,8 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
     kwargs.setdefault('linewidth', 1.2)
     for c in cube_list:
         label = get_label(c, label_attr)
+        if label_alias is not None:
+            label = label_alias.get(label, label)
         if isinstance(c.data, numpy.ma.MaskedArray) \
                 and numpy.all(c.data.mask):
             # if all data is bad, skip
@@ -55,7 +58,7 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
         titles = utility.unique([' '.join(a) for
                                  a in zip(loc_names, dep_strs)])
         title = ', '.join(titles).strip()
-        ax.set_title(title)
+    ax.set_title(title)
     if time_lim is not None:
         ax.set_xlim(time_lim)
 
