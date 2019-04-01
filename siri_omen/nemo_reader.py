@@ -209,9 +209,21 @@ class NemoStationFileReader(NemoFileReader):
     def get_station_metadata(self):
         return self.station_metadata
 
-    def get_dataset(self, variable, var_name=None):
+    def get_dataset(self, variable, var_name=None, callback_func=None):
         """
-        Reads all files to cubes and concatenates them in time
+        Reads all files to cubes and concatenates them in time.
+
+        Returns all cubes in a dictionary, or executes callback_func on each
+        cube.
+
+        :arg variable: Variable name to read from netcdf fiels. Typically
+            standard_name attribute.
+        :kwarg var_name: Name of the field array in netcdf files (optional).
+            Can be used to read the correct field in cases where multiple
+            fields have the same standard name.
+        :kwarg callback_func: User-defined function which will be executed for
+            each cube. In this case cubes are not kept in memory; function
+            returns None.
         """
         dataset = {}
         for key in self.station_metadata.keys():
@@ -249,10 +261,44 @@ class NemoStationFileReader(NemoFileReader):
             try:
                 utility.assert_cube_metadata(cube)
                 utility.assert_cube_valid_data(cube)
-                dataset[key] = cube
+                self.fix_depth_dimension(cube)
+                if callback_func is not None:
+                    callback_func(cube)
+                else:
+                    dataset[key] = cube
             except AssertionError as e:
                 pass
-        return dataset
+        if callback_func is None:
+            return dataset
+
+    def dump_dataset(self, variable, var_name=None):
+        """
+        Read files to cubes, concatenates them in time, and stores to disk.
+
+        Does not keep any cubes in memory.
+        """
+        self.get_dataset(variable, var_name=var_name,
+                         callback_func=utility.save_cube)
+
+    def fix_depth_dimension(self, cube):
+        """
+        Fixes depth dimension of the station data inplace
+        """
+        coords = [c.name() for c in cube.coords()]
+        if 'depth' not in coords:
+            # assume surface time series => depth = 0.0
+            dep_dim = iris.coords.DimCoord(0.0,
+                                            standard_name='depth',
+                                            units='m')
+            cube.add_aux_coord(dep_dim, None)
+        else:
+            # remove masked depth points
+            i_time = cube.coord_dims('time')[0]
+            i_depth = cube.coord_dims('depth')[0]
+            good_depths = numpy.isfinite(cube.data).any(axis=i_time)
+            select = [slice(None, None, None)] * len(cube.shape)
+            select[i_depth] = good_depths
+            cube = cube[tuple(select)]
 
 
 class TimeSeriesExtractor():
@@ -544,24 +590,4 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
         sname = utility.map_var_standard_name[var]
         nemo_var = map_nemo_standard_name.get(sname, sname)
         var_name = nemo_ncvar_name.get(var)
-        dataset = nreader.get_dataset(nemo_var, var_name=var_name)
-
-        for key in dataset:
-            cube = dataset[key]
-
-            coords = [c.name() for c in cube.coords()]
-            if 'depth' not in coords:
-                # assume already at correct depth
-                dep_dim = iris.coords.DimCoord(0.0,
-                                               standard_name='depth',
-                                               units='m')
-                cube.add_aux_coord(dep_dim, None)
-            else:
-                # remove masked depth points
-                i_time = cube.coord_dims('time')[0]
-                i_depth = cube.coord_dims('depth')[0]
-                good_depths = numpy.isfinite(cube.data).any(axis=i_time)
-                select = [slice(None, None, None)] * len(cube.shape)
-                select[i_depth] = good_depths
-                cube = cube[tuple(select)]
-            utility.save_cube(cube)
+        dataset = nreader.dump_dataset(nemo_var, var_name=var_name)
