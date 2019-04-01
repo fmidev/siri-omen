@@ -551,3 +551,44 @@ def cube_heat_content(salinity, temperature):
     heat_content.units = "J"
 
     return heat_content
+
+
+def abs_sal_from_pract_sal(p_salinity):
+    """
+    Takes in a cube of practical salinity.
+    (ignores teh given units)
+    returns a cube with absolute Salinity,
+    units fixed.
+    """
+    # Create a pressure field. 
+    pressure = cube_pressure(p_salinity)
+    # create latitude and longitude axis
+    latitudes_simple = p_salinity.coords('latitude')[0].points
+    longitudes_simple = p_salinity.coords('longitude')[0].points
+
+    latitude_index = p_salinity.coord_dims('latitude')[0]
+    shape_of_cube = numpy.array(p_salinity.shape)
+    shape_of_cube[:] = 1
+    shape_of_cube[latitude_index] = p_salinity.shape[latitude_index]
+    latitudes = numpy.ones(shape_of_cube)*\
+                latitudes_simple.reshape(shape_of_cube)
+
+
+    longitude_index = p_salinity.coord_dims('longitude')[0]
+    shape_of_cube = numpy.array(p_salinity.shape)
+    shape_of_cube[:] = 1
+    shape_of_cube[longitude_index] = p_salinity.shape[longitude_index]
+    longitudes = numpy.ones(shape_of_cube)*\
+                longitudes_simple.reshape(shape_of_cube)
+
+    # make a cube
+    a_salinity= p_salinity.copy()
+    a_salinity.rename('sea_water_absolute_salnity')
+    a_salinity.units = 'g kg-1'
+
+    a_salinity.data = gsw.SA_from_SP(p_salinity.data,
+                                     pressure.data,
+                                     longitudes,
+                                     latitudes)
+
+    return a_salinity
