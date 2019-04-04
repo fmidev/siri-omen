@@ -560,6 +560,17 @@ def abs_sal_from_pract_sal(p_salinity):
     returns a cube with absolute Salinity,
     units fixed.
     """
+    # Check the cube name
+    name_abs_sal = 'sea_water_absolute_salinity'
+    name_pract_sal = 'sea_water_practical_salinity'
+    if(p_salinity.name() == name_abs_sal):
+        print("warning: cube already in absolute salinity.")
+        print("nothing done.")
+        return p_salinity.copy()
+    elif p_salinity.name() is not name_pract_sal:
+        print("warning: input value not {}".format(name_abs_sal))
+        print("(Got '{}')".format(p_salinity.name()))
+
     # Create a pressure field. 
     pressure = cube_pressure(p_salinity)
     # create latitude and longitude axis
@@ -583,7 +594,7 @@ def abs_sal_from_pract_sal(p_salinity):
 
     # make a cube
     a_salinity= p_salinity.copy()
-    a_salinity.rename('sea_water_absolute_salnity')
+    a_salinity.rename(name_abs_sal)
     a_salinity.units = 'g kg-1'
 
     a_salinity.data = gsw.SA_from_SP(p_salinity.data,
