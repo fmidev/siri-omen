@@ -21,10 +21,10 @@ The environment must be activated prior usage:
 conda activate iris
 ```
 
-Then we can install Iris. At the moment it is recommended to use version 1.13.
+Then we can install Iris.
 
 ```bash
-conda install -c conda-forge iris=1.13
+conda install -c conda-forge
 ```
 
 ### Install with pip
