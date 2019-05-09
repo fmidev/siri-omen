@@ -78,8 +78,8 @@ class TargetDiagram(object):
         new_max = max([abs(v) for v in new_values])
         if new_max > self.max_datalim:
             self.max_datalim = new_max
-            bounds = [-expand_factor*self.max_datalim,
-                      expand_factor*self.max_datalim]
+            bounds = [-expand_factor * self.max_datalim,
+                      expand_factor * self.max_datalim]
             if not self.fixed_axes:
                 self.ax.set_xlim(bounds)
                 self.ax.set_ylim(bounds)
@@ -228,13 +228,15 @@ def _plot_taylor_target(cube_pairs, normalized, **kwargs):
     target_datalim = kwargs.pop('target_datalim')
     pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
                                          add_crmse_sign=True)
+    title = kwargs.pop('title', None)
     taylor_dia = taylor.plot_normalized_taylor_diagram(
         cube_pairs, pair_stats=pair_stats,
         fig=fig, rect=121, add_legend=False, title='', **kwargs)
     target_dia = plot_normalized_target_diagram(
         cube_pairs, pair_stats=pair_stats,
         fig=fig, rect=122, add_legend=True, datalim=target_datalim, **kwargs)
-    title = target_dia.ax.get_title()
+    if title is None:
+        title = target_dia.ax.get_title()
     target_dia.ax.set_title(title, x=-0.04)
 
     return taylor_dia, target_dia
@@ -245,7 +247,8 @@ def plot_normalized_taylor_target_diagram(cube_pairs, **kwargs):
     return _plot_taylor_target(cube_pairs, normalized, **kwargs)
 
 
-def save_taylor_target_diagram(cube_pairs, output_dir=None, **kwargs):
+def save_taylor_target_diagram(cube_pairs, output_dir=None,
+                               plot_root_dir=None, **kwargs):
     """
     Makes a default taylor-target diagram and saves it to disk.
     """
@@ -256,7 +259,8 @@ def save_taylor_target_diagram(cube_pairs, output_dir=None, **kwargs):
     cube_list = [p[0] for p in cube_pairs] + [p[1] for p in cube_pairs]
     imgfile = utility.generate_img_filename(cube_list,
                                             loc_str='stations',
-                                            root_dir=output_dir,
+                                            output_dir=output_dir,
+                                            root_dir=plot_root_dir,
                                             prefix='taylortarget')
     dir, filename = os.path.split(imgfile)
     utility.create_directory(dir)

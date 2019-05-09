@@ -9,6 +9,7 @@ from . import utility
 
 def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
                  plot_style='line',
+                 label_alias=None,
                  title=None, **kwargs):
     """
     Plots vertical profile objects in the given axes.
@@ -27,6 +28,8 @@ def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
 
     for c, style in zip(cube_list, style_list):
         label = get_label(c, label_attr)
+        if label_alias is not None:
+            label = label_alias.get(label, label)
         if isinstance(c.data, numpy.ma.MaskedArray) \
                 and numpy.all(c.data.mask):
             # if all data is bad, skip
@@ -79,7 +82,8 @@ def plot_profile(ax, cube_list, label_attr='dataset_id', xlim=None,
         ax.set_title(title)
 
 
-def save_profile_figure(cube_list, output_dir=None, **kwargs):
+def save_profile_figure(cube_list, output_dir=None, plot_root_dir=None,
+                        **kwargs):
     """
     Makes a default time series plot and saves it to disk.
     """
@@ -88,7 +92,10 @@ def save_profile_figure(cube_list, output_dir=None, **kwargs):
 
     plot_profile(ax, cube_list, **kwargs)
 
-    imgfile = utility.generate_img_filename(cube_list, root_dir=output_dir)
+    imgfile = utility.generate_img_filename(cube_list,
+                                            output_dir=output_dir,
+                                            root_dir=plot_root_dir,
+                                            )
     dir, filename = os.path.split(imgfile)
     utility.create_directory(dir)
 

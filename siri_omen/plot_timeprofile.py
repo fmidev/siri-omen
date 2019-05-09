@@ -12,7 +12,7 @@ __all__ = [
     'plot_timeprofile',
     'make_timeprofile_plot',
     'save_timeprofile_figure',
-    ]
+]
 
 log_scale_vars = [
     'specific_turbulent_kinetic_energy_of_sea_water',
@@ -117,7 +117,7 @@ def make_timeprofile_plot(cube_list, **kwargs):
     ncubes = len(cube_list)
 
     plot_height = 3.5
-    fig = plt.figure(figsize=(12, ncubes*plot_height))
+    fig = plt.figure(figsize=(12, ncubes * plot_height))
     ax_list = fig.subplots(ncubes, 1, sharex=True, sharey=True)
     if ncubes == 1:
         ax_list = [ax_list]

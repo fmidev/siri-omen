@@ -254,6 +254,17 @@ def gen_filename(cube, root_dir='obs'):
     return fname
 
 
+def remove_cube_mean(cube):
+    """
+    Remove (temporal) mean from the cube.
+
+    :returns: a new Cube object
+    """
+    new_cube = cube.copy()
+    new_cube.data -= cube.collapsed('time', iris.analysis.MEAN).data
+    return new_cube
+
+
 def get_common_time_overlap(cube_list, mode='union'):
     """
     Find a common overlapping time interval of the cubes.
@@ -272,7 +283,8 @@ def get_common_time_overlap(cube_list, mode='union'):
     return start_time, end_time
 
 
-def generate_img_filename(cube_list, prefix=None, loc_str=None, root_dir=None,
+def generate_img_filename(cube_list, prefix=None, loc_str=None,
+                          output_dir=None, root_dir=None,
                           start_time=None, end_time=None):
     """
     Generate a canonical name for a vertical profile image file.
@@ -306,12 +318,14 @@ def generate_img_filename(cube_list, prefix=None, loc_str=None, root_dir=None,
     imgfile += '.png'
 
     if root_dir is None:
+        root_dir = 'plots'
+    if output_dir is None:
         id_list = [c.attributes['dataset_id'] for c in cube_list]
         id_list = sorted(unique(id_list))
         data_id_str = '-'.join(id_list)
-        root_dir = os.path.join('plots', data_id_str, datatype, var_str)
+        output_dir = os.path.join(root_dir, data_id_str, datatype, var_str)
 
-    imgfile = os.path.join(root_dir, imgfile)
+    imgfile = os.path.join(output_dir, imgfile)
 
     return imgfile
 
@@ -414,5 +428,5 @@ def cube_volumes(cube):
     # dimensions stay same, but each has just one entry.
     new_shape[depth_coord] = volumes.shape[depth_coord]
     # depth axis is real lenght
-    volumes = volumes*cell_thickness.reshape(new_shape)
+    volumes = volumes * cell_thickness.reshape(new_shape)
     return volumes

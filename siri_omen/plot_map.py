@@ -3,6 +3,7 @@ Make 2D map plots.
 """
 import numpy
 import matplotlib.pyplot as plt
+import iris.plot as iplt
 import cartopy.crs as ccrs
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import cartopy.feature as cfeature
@@ -66,7 +67,7 @@ class GeographicPlot(object):
             textargs.setdefault('horizontalalignment', 'left')
             textargs.setdefault('verticalalignment', 'top')
             textargs.setdefault('fontsize', 8)
-            self.add_text(x+0.1, y, label, transform=transform, **textargs)
+            self.add_text(x + 0.1, y, label, transform=transform, **textargs)
 
     def add_text(self, x, y, text, transform=None, **kwargs):
         if transform is None:
@@ -112,6 +113,16 @@ class GeographicPlot(object):
                                 **kwargs)
         return p
 
+    def add_cube(self, cube, kind='pcolormesh', **kwargs):
+        kwargs.setdefault('zorder', 2)
+        if kind == 'pcolormesh':
+            p = iplt.pcolormesh(cube, **kwargs)
+        elif kind == 'contourf':
+            p = iplt.contourf(cube, **kwargs)
+        else:
+            raise RuntimeError('Unknown plot kind: {:}'.format(kind))
+        return p
+
     def add_feature(self, feature_name, scale='50m', **kwargs):
         kwargs.setdefault('zorder', 1)
         if feature_name == 'land':
@@ -137,7 +148,7 @@ class GeographicPlot(object):
         # create colorbar
         width = 0.02
         pos = self.ax.get_position().bounds
-        x = pos[0] + pos[2] + pad*pos[2]
+        x = pos[0] + pos[2] + pad * pos[2]
         cax = self.fig.add_axes([x, pos[1], width, pos[3]])
         cb = plt.colorbar(p, cax=cax, **kwargs)
         if label is not None:
