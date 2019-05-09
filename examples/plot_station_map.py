@@ -21,7 +21,7 @@ diag.add_title(' '.join([datatype, obs_id,
 dataset_list = []
 for data_id in data_id_list:
     d = read_dataset(data_id, 'timeseries', var,
-                        start_time=start_time, end_time=end_time)
+                     start_time=start_time, end_time=end_time)
     dataset_list.append(d)
 
 # find pairs
@@ -37,7 +37,7 @@ for key in pairs:
     lon = o.coord('longitude').points
     location_name = o.attributes['location_name']
     diag.add_station(lon, lat, label=location_name, label_to_legend=True,
-                        alpha=0.7)
+                     alpha=0.7)
 
 diag.add_legend()
 

@@ -266,7 +266,7 @@ class NemoStationFileReader(NemoFileReader):
                     callback_func(cube)
                 else:
                     dataset[key] = cube
-            except AssertionError as e:
+            except AssertionError:
                 pass
         if callback_func is None:
             return dataset
@@ -287,9 +287,8 @@ class NemoStationFileReader(NemoFileReader):
         coords = [c.name() for c in cube.coords()]
         if 'depth' not in coords:
             # assume surface time series => depth = 0.0
-            dep_dim = iris.coords.DimCoord(0.0,
-                                            standard_name='depth',
-                                            units='m')
+            dep_dim = iris.coords.DimCoord(
+                0.0, standard_name='depth', units='m')
             cube.add_aux_coord(dep_dim, None)
         else:
             # remove masked depth points
@@ -445,14 +444,14 @@ def remove_null_indices(in_cube):
         all_but_this = tuple(filter(lambda x: x != i, dimensions))
         # all_but_this list every axis, exept dimension
         # used to flatten all the listed axis.
-        masks = [slice(None)]*len(dimension_lens)
+        masks = [slice(None)] * len(dimension_lens)
         # mask marks now all dimensions equvalent to [:,:,:,:]
         axis_mask = ~numpy.max(cube.data, axis=all_but_this).mask
         masks[i] = axis_mask
         # and this replaces one with the cropped boolean array.
-        cube=cube[tuple(masks)]
+        cube = cube[tuple(masks)]
         # then replace cube with the cropped one
-        #for this axis.
+        # for this axis.
     return cube
 
 
@@ -485,7 +484,8 @@ def fix_cube_coordinates(cube):
         dim_coord = iris.coords.DimCoord(array, standard_name=name,
                                          units='degrees')
         return dim_coord
-   # FIXME get the coord indices from the metadata
+
+    # FIXME get the coord indices from the metadata
     lat_len, lon_len = cube.coord('latitude').shape
     lon_coord = _make_dim_coord('longitude', lon_len)
     lat_coord = _make_dim_coord('latitude', lat_len)
@@ -521,7 +521,6 @@ def fix_cube_coordinates(cube):
         z_coord.guess_bounds()
         cube.remove_coord(c.long_name)
         cube.add_dim_coord(z_coord, z_dim_index)
-
 
     # convert time coordinate
     time_coord = cube.coords()[0]
@@ -590,4 +589,4 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
         sname = utility.map_var_standard_name[var]
         nemo_var = map_nemo_standard_name.get(sname, sname)
         var_name = nemo_ncvar_name.get(var)
-        dataset = nreader.dump_dataset(nemo_var, var_name=var_name)
+        nreader.dump_dataset(nemo_var, var_name=var_name)

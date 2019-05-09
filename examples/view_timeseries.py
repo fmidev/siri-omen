@@ -3,7 +3,6 @@ View netCDF time series in an interactive timeseries plot with bokeh.
 
 Plot opens in a browser window.
 """
-from bokeh.models import ColumnDataSource
 from bokeh.plotting import figure, show, output_file
 from bokeh.palettes import Category10 as palette
 import itertools

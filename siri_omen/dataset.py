@@ -104,9 +104,9 @@ def find_station_pairs(*dataset_list, dist_threshold=0.1,
                 if verbose:
                     print(' candidate: {:}'.format(keys[ix]))
                 src_key = keys[ix]
-                same_loc_name = (
-                    src_dataset[src_key].attributes['location_name'] ==
-                    dataset[qkey].attributes['location_name'])
+                src_loc = src_dataset[src_key].attributes['location_name']
+                loc = dataset[qkey].attributes['location_name']
+                same_loc_name = src_loc == loc
                 match = same_loc_name if match_loc_name \
                     else dist < dist_threshold
                 if match:
