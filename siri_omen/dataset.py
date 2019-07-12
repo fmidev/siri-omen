@@ -47,19 +47,23 @@ def read_dataset(dataset_id, datatype, variable,
     file_list = glob.glob(pattern)
     assert len(file_list) > 0, 'No files found: {:}'.format(pattern)
     for f in sorted(file_list):
-        if verbose:
-            print('Loading: {:}'.format(f))
-        c = utility.load_cube(f, None)
-        if start_time is not None or end_time is not None:
-            c = utility.constrain_cube_time(c, start_time=start_time,
-                                            end_time=end_time)
-        if datatype in ['timeseries', 'timeprofile']:
-            dep_str = utility.get_depth_sring(c)
-            key = '-'.join((c.attributes['location_name'], dep_str))
-        else:
-            start_str = utility.get_cube_datetime(c, 0).strftime('%Y-%m-%d')
-            key = '-'.join((c.attributes['location_name'], start_str))
-        d[key] = c
+        try:
+            if verbose:
+                print('Loading: {:}'.format(f))
+            c = utility.load_cube(f, None)
+            if start_time is not None or end_time is not None:
+                c = utility.constrain_cube_time(c, start_time=start_time,
+                                                end_time=end_time)
+            if datatype in ['timeseries', 'timeprofile']:
+                dep_str = utility.get_depth_sring(c)
+                key = '-'.join((c.attributes['location_name'], dep_str))
+            else:
+                start_str = utility.get_cube_datetime(c, 0).strftime('%Y-%m-%d')
+                key = '-'.join((c.attributes['location_name'], start_str))
+            d[key] = c
+        except Exception as e:
+            print('Could not read file: {:}'.format(f))
+            print(e)
     return d
 
 
