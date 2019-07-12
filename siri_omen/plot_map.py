@@ -15,8 +15,11 @@ class GeographicPlot(object):
     """
     A map plot object.
     """
-    def __init__(self, fig=None, rect=None, projection=None,
-                 extent=[6, 32, 53, 66]):
+    def __init__(self, ax=None, fig=None, rect=None, projection=None,
+                 extent=[6, 32, 53, 66], symmetric_colorbar=False,
+                 draw_grid=True):
+        self.symmetric_colorbar = symmetric_colorbar
+        self.val_max_magnitude = 0.0
 
         if projection is None:
             projection = ccrs.Mercator(
@@ -24,22 +27,29 @@ class GeographicPlot(object):
                 max_latitude=80., latitude_true_scale=60.0
             )
 
-        self.fig = plt.figure(figsize=(12, 12)) if fig is None else fig
-        if rect is None:
-            rect = 111
+        if ax is None:
+            # create new axes with projection
+            self.fig = plt.figure(figsize=(12, 12)) if fig is None else fig
+            if rect is None:
+                rect = 111
 
-        ax = self.fig.add_subplot(rect, projection=projection)
-        self.ax = ax
+            ax = self.fig.add_subplot(rect, projection=projection)
+            self.ax = ax
+        else:
+            # use user-provided axis, must have a geographic projection
+            self.ax = ax
+            self.fig = self.ax.figure
 
         if extent is not None:
             ax.set_extent(extent)
 
-        gl = ax.gridlines(draw_labels=True, zorder=2)
-        gl.xlabels_top = False
-        gl.ylabels_right = False
-        gl.xformatter = LONGITUDE_FORMATTER
-        gl.yformatter = LATITUDE_FORMATTER
-        self.gl = gl
+        if draw_grid:
+            gl = ax.gridlines(draw_labels=True, zorder=2)
+            gl.xlabels_top = False
+            gl.ylabels_right = False
+            gl.xformatter = LONGITUDE_FORMATTER
+            gl.yformatter = LATITUDE_FORMATTER
+            self.gl = gl
 
         self.point_style = get_point_style_cycler()
         self.point_style_iter = iter(self.point_style)
@@ -114,13 +124,35 @@ class GeographicPlot(object):
         return p
 
     def add_cube(self, cube, kind='pcolormesh', **kwargs):
+        if self.symmetric_colorbar:
+            max_mag = max(abs(cube.data.min()), abs(cube.data.max()))
+            self.val_max_magnitude = max(max_mag, self.val_max_magnitude)
+            vmin = -self.val_max_magnitude
+            vmax = self.val_max_magnitude
+            kwargs.setdefault('vmin', vmin)
+            kwargs.setdefault('vmax', vmax)
+
         kwargs.setdefault('zorder', 2)
         if kind == 'pcolormesh':
-            p = iplt.pcolormesh(cube, **kwargs)
+            p = iplt.pcolormesh(cube, axes=self.ax, **kwargs)
         elif kind == 'contourf':
-            p = iplt.contourf(cube, **kwargs)
+            p = iplt.contourf(cube, axes=self.ax, **kwargs)
         else:
             raise RuntimeError('Unknown plot kind: {:}'.format(kind))
+        return p
+
+    def add_quiver(self, cube_x, cube_y, transform=None, **kwargs):
+        x = cube_x.coord('longitude').points
+        y = cube_x.coord('latitude').points
+        u = cube_x.data
+        v = cube_y.data
+        if transform is None:
+            transform = ccrs.PlateCarree()
+        assert u.shape == v.shape
+        kwargs.setdefault('zorder', 3)
+        kwargs.setdefault('pivot', 'tail')
+        p = self.ax.quiver(x, y, u, v, transform=transform,
+                           **kwargs)
         return p
 
     def add_feature(self, feature_name, scale='50m', **kwargs):
@@ -144,12 +176,13 @@ class GeographicPlot(object):
         kwargs.setdefault('ncol', ncolumns)
         self.ax.legend(numpoints=1, **kwargs)
 
-    def add_colorbar(self, p, label=None, pad=0.03, **kwargs):
-        # create colorbar
-        width = 0.02
-        pos = self.ax.get_position().bounds
-        x = pos[0] + pos[2] + pad * pos[2]
-        cax = self.fig.add_axes([x, pos[1], width, pos[3]])
+    def add_colorbar(self, p, label=None, pad=0.03, cax=None, **kwargs):
+        if cax is None:
+            # create colorbar
+            width = 0.02
+            pos = self.ax.get_position().bounds
+            x = pos[0] + pos[2] + pad * pos[2]
+            cax = self.fig.add_axes([x, pos[1], width, pos[3]])
         cb = plt.colorbar(p, cax=cax, **kwargs)
         if label is not None:
             cb.set_label(label)
