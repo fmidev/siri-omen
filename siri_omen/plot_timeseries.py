@@ -19,7 +19,8 @@ plot_unit = {
 def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
                     title=None, time_extent=None,
                     label_alias=None,
-                    style=None,
+                    style=None, ylim=None,
+                    legend_kwargs=None,
                     start_time=None, end_time=None, **kwargs):
     """
     Plots time series objects in the given axes.
@@ -57,7 +58,9 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
     ax.set_xlim(start_time, end_time)
-    plt.legend(loc='upper left', bbox_to_anchor=(1.02, 1.0))
+    if legend_kwargs is None:
+        legend_kwargs = {'loc': 'upper left', 'bbox_to_anchor': (1.02, 1.0)}
+    plt.legend(**legend_kwargs)
     if title is None:
         loc_names = [c.attributes['location_name'] for c in cube_list]
         dep_strs = ['{:.1f} m'.format(
@@ -72,13 +75,13 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
     xlim = ax.get_xlim()
     range_days = xlim[1] - xlim[0]
 
-    if range_days < 10:
+    if range_days < 15:
         major_locator = mdates.DayLocator()
         minor_locator = mdates.HourLocator(interval=6)
     elif range_days < 30:
         major_locator = mdates.DayLocator([1, 5, 10, 15, 20, 25])
         minor_locator = mdates.DayLocator()
-    elif range_days < 60:
+    elif range_days < 80:
         major_locator = mdates.DayLocator([1, 10, 20])
         minor_locator = mdates.DayLocator()
     elif range_days < 370:
@@ -97,6 +100,9 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
     ax.grid(which='minor', linestyle='dashed', linewidth=0.3, color='0.7')
 
     ax.figure.autofmt_xdate()
+
+    if ylim is not None:
+        ax.set_ylim(ylim)
 
 
 def save_timeseries_figure(cube_list, output_dir=None, plot_root_dir=None,
