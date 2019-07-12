@@ -409,6 +409,17 @@ def compute_cube_statistics(reference, predicted):
     return statistics.compute_statistics(r, p)
 
 
+def crop_invalid_depths(cube):
+    """
+    Removes depth values that have all invalid values.
+    """
+    datatype = get_cube_datatype(cube)
+    assert datatype == 'timeprofile'
+    good_depth = numpy.isfinite(cube.data).any(axis=0)
+    cube2 = cube[:, good_depth]
+    return cube2
+
+
 def cube_volumes(cube):
     """
     calculates volumes for each cell based on

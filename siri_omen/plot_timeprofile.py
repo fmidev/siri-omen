@@ -60,6 +60,8 @@ def plot_timeprofile(cube, ax, title=None,
                                             end_time=end_time)
     else:
         _cube = cube
+    _cube = utility.crop_invalid_depths(_cube)
+
     z = -get_grid(_cube, 'depth')
     t = get_plot_time(_cube)
 
@@ -118,7 +120,8 @@ def make_timeprofile_plot(cube_list, **kwargs):
 
     plot_height = 3.5
     fig = plt.figure(figsize=(12, ncubes * plot_height))
-    ax_list = fig.subplots(ncubes, 1, sharex=True, sharey=True)
+    sharey = kwargs.pop('share_y_axis', True)
+    ax_list = fig.subplots(ncubes, 1, sharex=True, sharey=sharey)
     if ncubes == 1:
         ax_list = [ax_list]
 
@@ -140,15 +143,17 @@ def save_timeprofile_figure(cube_list, output_dir=None, **kwargs):
     time_extent = kwargs.pop('time_extent', None)
     start_time = kwargs.pop('start_time', None)
     end_time = kwargs.pop('end_time', None)
+    imgfile = kwargs.pop('filename', None)
     if start_time is None and end_time is None and time_extent is not None:
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
     fig = make_timeprofile_plot(cube_list, start_time=start_time,
                                 end_time=end_time, **kwargs)
 
-    imgfile = utility.generate_img_filename(cube_list, root_dir=output_dir,
-                                            start_time=start_time,
-                                            end_time=end_time)
+    if imgfile is None:
+        imgfile = utility.generate_img_filename(cube_list, root_dir=output_dir,
+                                                start_time=start_time,
+                                                end_time=end_time)
     dir, filename = os.path.split(imgfile)
     utility.create_directory(dir)
 
