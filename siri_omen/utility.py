@@ -168,7 +168,7 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     assert st <= time_coord.points[-1], \
         'No overlapping time period found. start_time after last time stamp.'
     time_constrain = iris.Constraint(
-        coord_values={'time': lambda t: st <= t.point <= et})
+        coord_values={'time': lambda t: start_time <= t.point <= end_time})
     new_cube = cube.extract(time_constrain)
     return new_cube
 
