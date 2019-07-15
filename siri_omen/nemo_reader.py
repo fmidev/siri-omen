@@ -235,6 +235,7 @@ class NemoStationFileReader(NemoFileReader):
                 if self.verbose:
                     print('Loading {:}'.format(f))
                 kw = {}
+                kw['read_with_netcdf'] = True  # make reading faster
                 if var_name is not None:
                     kw['var_name'] = var_name
                 try:
@@ -543,7 +544,8 @@ def fix_cube_coordinates(cube):
 
 
 def load_nemo_output(ncfile, standard_name, var_name=None,
-                     force_real_data=False, **kwargs):
+                     force_real_data=False,
+                     read_with_netcdf=False, **kwargs):
     """
     Load a field identified with standard_name from NEMO output file.
 
@@ -563,6 +565,24 @@ def load_nemo_output(ncfile, standard_name, var_name=None,
     assert len(cube_list) == 1, 'Multiple fields found'
     cube = cube_list[0]
     fix_cube_coordinates(cube)
+
+    if read_with_netcdf:
+        # NOTE read data array with netCDF4 library
+        # workaround to avoid slow iris reading, one time slice at a time
+        found_var = None
+        with netCDF4.Dataset(ncfile) as ncds:
+            for vname, v in ncds.variables.items():
+                sname_match = (hasattr(v, 'standard_name') and
+                               v.standard_name == standard_name)
+                vname_match = vname == var_name
+                if (sname_match or vname_match):
+                    found_var = v
+                    break
+            assert found_var is not None, \
+                'Could not find var {:}/{:} in {:}'. \
+                format(standard_name, var_name, ncfile)
+            cube.data = found_var[:]
+
     if force_real_data:
         # read data to memory
         cube.data
