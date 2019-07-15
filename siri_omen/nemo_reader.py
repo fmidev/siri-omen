@@ -17,8 +17,6 @@ map_nemo_standard_name = {
     'sea_water_practical_salinity': 'sea_water_practical_salinity',
     'water_surface_height_above_reference_datum':
         'sea_surface_height_above_geoid',
-    'specific_turbulent_kinetic_energy_of_sea_water':
-        'turbulent_kinetic_energy',
     'specific_turbulent_kinetic_energy_dissipation_in_sea_water':
         'turbulent_kinetic_energy_dissipation',
 }
