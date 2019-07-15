@@ -29,12 +29,23 @@ def _get_depth_coord(input_file, var):
 
 
 def _get_location_name(cube):
-    if 'platform_name' in cube.attributes:
-        location_name = cube.attributes['platform_name']
-    elif 'platform_code' in cube.attributes:
-        location_name = cube.attributes['platform_code']
-    else:
-        location_name = cube.attributes['site_code']
+    attr = cube.attributes
+
+    def read_attr(name):
+        if name in attr and attr[name] != '':
+            return attr[name]
+        return None
+
+    location_name = None
+    location_name = read_attr('platform_name')
+    if location_name is None:
+        location_name = read_attr('platform_code')
+    if location_name is None:
+        location_name = read_attr('site_code')
+    assert location_name is not None
+    assert location_name != ''
+    if location_name[-2:] == 'TG':
+        location_name = location_name[:-2]
     return location_name
 
 
