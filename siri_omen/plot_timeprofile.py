@@ -51,7 +51,7 @@ def plot_timeprofile(cube, ax, title=None,
                      log_scale=False, symmetric_scale=False,
                      cmap=None, vmin=None, vmax=None, colorbar=True):
     """
-    Plot sigle cube in given axes.
+    Plot a single cube in the given axes.
     """
     fig = ax.figure
     if start_time is not None or end_time is not None:

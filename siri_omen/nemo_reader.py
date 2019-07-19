@@ -454,6 +454,33 @@ def remove_null_indices(in_cube):
     return cube
 
 
+def fix_cube_time_coordinate(cube):
+    """
+    Fixes calendar used in Nemo (leap/noleap) to 'gregorian'.
+
+    The default calendar does not work for most time operations in iris.
+    Time coordinate is fixed in-place.
+    """
+    # convert time coordinate
+    time_coord = cube.coords()[0]
+    time_units = time_coord.units
+    time_array = numpy.array(time_coord.points)
+    start_date = time_units.num2date(time_array[0])
+
+    new_time_units = cf_units.Unit(
+        'seconds since 1970-01-01 00:00:00-00',
+        calendar='gregorian')
+
+    offset = new_time_units.date2num(start_date) - time_array[0]
+    time_array += offset
+    time_dim = iris.coords.DimCoord(time_array,
+                                    standard_name='time',
+                                    units=new_time_units)
+    time_ix = cube.coord_dims('time')
+    cube.remove_coord(time_coord)
+    cube.add_dim_coord(time_dim, time_ix)
+
+
 def fix_cube_coordinates(cube):
     """
     Fixes NEMO lat,lon coordinates to format that iris supports
@@ -521,24 +548,7 @@ def fix_cube_coordinates(cube):
         cube.remove_coord(c.long_name)
         cube.add_dim_coord(z_coord, z_dim_index)
 
-    # convert time coordinate
-    time_coord = cube.coords()[0]
-    time_units = time_coord.units
-    time_array = numpy.array(time_coord.points)
-    start_date = time_units.num2date(time_array[0])
-
-    new_time_units = cf_units.Unit(
-        'seconds since 1970-01-01 00:00:00-00',
-        calendar='gregorian')
-
-    offset = new_time_units.date2num(start_date) - time_array[0]
-    time_array += offset
-    time_dim = iris.coords.DimCoord(time_array,
-                                    standard_name='time',
-                                    units=new_time_units)
-    time_ix = cube.coord_dims('time')
-    cube.remove_coord(time_coord)
-    cube.add_dim_coord(time_dim, time_ix)
+    fix_cube_time_coordinate(cube)
 
 
 def load_nemo_output(ncfile, standard_name, var_name=None,

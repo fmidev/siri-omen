@@ -53,6 +53,7 @@ map_short_datatype = {
     'timeseries': 'ts',
     'profile': 'prof',
     'timeprofile': 'tprof',
+    'timetransect': 'trans',
 }
 
 epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
@@ -178,24 +179,30 @@ def get_cube_datatype(cube):
     Detect cube datatype.
 
     Supported datatypes are:
-    point       - ()
-    timeseries  - (time)
-    profile     - (depth)
-    timeprofile - (time, depth)
+    point        - ()
+    timeseries   - (time)
+    profile      - (depth)
+    timeprofile  - (time, depth)
+    timetransect - (time, depth, index)
     """
     coords = [c.name() for c in cube.coords()]
     has_depth = 'depth' in coords
     has_time = 'time' in coords
+    ndims = len(cube.shape)
     if has_depth:
         ndepth = len(cube.coord('depth').points)
     if has_time:
         ntime = len(cube.coord('time').points)
-    if (has_time and ntime > 1) and (has_depth and ndepth == 1):
+    depth_dep = has_depth and ndepth > 1
+    time_dep = has_time and ntime > 1
+    if time_dep and (has_depth and ndepth == 1) and ndims == 1:
         datatype = 'timeseries'
-    elif (has_time and ntime == 1) and (has_depth and ndepth > 1):
+    elif (has_time and ntime == 1) and depth_dep and ndims == 1:
         datatype = 'profile'
-    elif (has_time and ntime > 1) and (has_depth and ndepth > 1):
+    elif time_dep and depth_dep and ndims == 2:
         datatype = 'timeprofile'
+    elif time_dep and depth_dep and ndims == 3:
+        datatype = 'timetransect'
     else:
         print(cube)
         print('has time : {:} n={:}'.format(
@@ -241,7 +248,7 @@ def gen_filename(cube, root_dir='obs'):
     else:
         date_str = '_'.join([d.strftime('%Y-%m-%d')
                              for d in [start_time, end_time]])
-    if datatype in ['profile', 'timeprofile']:
+    if datatype in ['profile', 'timeprofile', 'timetransect']:
         parts = [prefix, location_name, dataset_id, var, date_str]
     else:
         depth_str = get_depth_sring(cube)
@@ -310,6 +317,10 @@ def generate_img_filename(cube_list, prefix=None, loc_str=None,
             start_time, end_time = get_common_time_overlap(cube_list, 'union')
         date_str = '_'.join(
             [d.strftime('%Y-%m-%d') for d in [start_time, end_time]])
+    elif datatype in ['timetransect']:
+        if start_time is None or end_time is None:
+            start_time, end_time = get_common_time_overlap(cube_list, 'union')
+        date_str = start_time.strftime('%Y-%m-%dT%H-%M')
     else:
         start_time = min([get_cube_datetime(c, 0) for c in cube_list])
         date_str = start_time.strftime('%Y-%m-%d')
@@ -396,7 +407,16 @@ def concatenate_cubes(cube_list):
     """
     list = iris.cube.CubeList(cube_list)
     equalise_attributes(list)
+    cube0 = cube_list[0]
+    is_transect = get_cube_datatype(cube0) == 'timetransect'
+    if is_transect:
+        depth_coord = cube0.coord('depth')
+        depth_dims = cube0.coord_dims(depth_coord)
+        for c in list:
+            c.remove_coord('depth')
     cube = list.concatenate_cube()
+    if is_transect:
+        cube.add_aux_coord(depth_coord, depth_dims)
     return cube
 
 
@@ -414,9 +434,18 @@ def crop_invalid_depths(cube):
     Removes depth values that have all invalid values.
     """
     datatype = get_cube_datatype(cube)
-    assert datatype == 'timeprofile'
-    good_depth = numpy.isfinite(cube.data).any(axis=0)
-    cube2 = cube[:, good_depth]
+    assert datatype in ['timeprofile', 'timetransect']
+    depth_ix = cube.coord_dims('depth')
+    #assert len(depth_ix) == 1
+    depth_ix = depth_ix[0]
+    ndims = len(cube.shape)
+    good_depth = cube.data
+    collapse_dims = tuple(i for i in range(ndims) if i != depth_ix)
+    good_depth = numpy.isfinite(good_depth).any(axis=collapse_dims)
+    filter = [slice(None)] * ndims
+    filter[depth_ix] = good_depth
+    filter = tuple(filter)
+    cube2 = cube[filter]
     return cube2
 
 
