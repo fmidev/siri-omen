@@ -225,7 +225,7 @@ def _plot_taylor_target(cube_pairs, normalized, **kwargs):
     fig = plt.figure(figsize=(18, 9))
     plt.subplots_adjust(wspace=0.08)
 
-    target_datalim = kwargs.pop('target_datalim')
+    target_datalim = kwargs.pop('target_datalim', 1.2)
     pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
                                          add_crmse_sign=True)
     title = kwargs.pop('title', None)
