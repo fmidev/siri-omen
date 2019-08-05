@@ -24,11 +24,3 @@ from . import nemo_reader  # NOQA
 from . import cmems_reader  # NOQA
 from . import ices_reader  # NOQA
 from . import statistics  # NOQA
-
-from distutils.version import StrictVersion
-if StrictVersion(iris.__version__) < StrictVersion('2.0.0'):
-    iris.FUTURE.netcdf_no_unlimited = True
-    iris.FUTURE.netcdf_promote = True
-    import warnings
-    warnings.simplefilter(action='ignore', category=FutureWarning)
-    warnings.simplefilter(action='ignore', category=RuntimeWarning)
