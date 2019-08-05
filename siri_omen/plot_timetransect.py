@@ -112,6 +112,7 @@ def plot_timetransect(cube, time_index, ax, title=None,
 
     x_along = get_transect_grid(_cube)
     x_along /= 1000.0  # convert to km
+    _cube = utility.drop_singleton_dims(_cube)
     data = _cube.data.copy()
     # duplicate coords for full cell plotting
     z = numpy.repeat(z, 2, axis=1)
@@ -167,8 +168,13 @@ def make_timetransect_plot(cube_list, time_index, **kwargs):
         kwargs['vmax'] = numpy.max([numpy.nanmax(c.data) for c in cube_list])
 
     date_list = []
+    style = kwargs.pop('style', {})
     for cube, ax in zip(cube_list, ax_list):
-        p, d = plot_timetransect(cube, time_index, ax, **kwargs)
+        # update variable dependent style (if any)
+        var = utility.map_var_short_name[cube.standard_name]
+        kw = dict(kwargs)
+        kw.update(style.get(var, {}))
+        p, d = plot_timetransect(cube, time_index, ax, **kw)
         date_list.append(d)
     for ax in ax_list[:-1]:
         ax.set_xlabel('')
