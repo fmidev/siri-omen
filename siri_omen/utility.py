@@ -168,9 +168,15 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
         'No overlapping time period found. end_time before first time stamp.'
     assert st <= time_coord.points[-1], \
         'No overlapping time period found. start_time after last time stamp.'
-    time_constrain = iris.Constraint(
-        coord_values={'time': lambda t: start_time <= t.point <= end_time})
-    new_cube = cube.extract(time_constrain)
+    t = time_coord.points
+    ix = numpy.logical_and(t >= st, t <= et)
+    assert numpy.any(ix), \
+        'Time extraction failed: {:} {:}'.format(start_time, end_time)
+    shape = cube.shape
+    extract = [slice(None)] * len(shape)
+    t_index = cube.coord_dims('time')[0]
+    extract[t_index] = ix
+    new_cube = cube[tuple(extract)]
     return new_cube
 
 
@@ -408,7 +414,8 @@ def concatenate_cubes(cube_list):
     list = iris.cube.CubeList(cube_list)
     equalise_attributes(list)
     cube0 = cube_list[0]
-    is_transect = get_cube_datatype(cube0) == 'timetransect'
+    has_depth = 'depth' in [c.name() for c in cube0.coords()]
+    is_transect = has_depth and len(cube0.coord_dims('depth')) == 2
     if is_transect:
         depth_coord = cube0.coord('depth')
         depth_dims = cube0.coord_dims(depth_coord)
