@@ -101,6 +101,7 @@ def import_cmems_timeseries(dataset_id,
                             start_time=None, end_time=None,
                             outputdir=None,
                             skip_station_list=None,
+                            include_station_list=None,
                             verbose=False):
     """
     Read CMEMS time series multiple netCDF files and stores it to disk.
@@ -113,8 +114,10 @@ def import_cmems_timeseries(dataset_id,
     :kwarg datetime start_time: first time stamp to accept (optional)
     :kwarg datetime end_time: last time stamp to accept (optional)
     :kwarg str outputdir: root directory of the stored files
+        (default: dataset_id)
     :kwarg skip_station_list: list of station names that will be skipped.
-    (default: dataset_id)
+    :kwarg include_station_list: If provided, read only netcdf files that
+        contain one of these names.
     """
     all_cubes = defaultdict(iris.cube.CubeList)
 
@@ -122,6 +125,10 @@ def import_cmems_timeseries(dataset_id,
 
     # check all matching files, try to read given variable
     for f in file_list:
+        if include_station_list is not None:
+            # check that f contains at least one of the names
+            if not any([s in f for s in include_station_list]):
+                continue
         try:
             cube_list = read_cmems_file(f, standard_name, start_time, end_time,
                                         verbose=verbose)
