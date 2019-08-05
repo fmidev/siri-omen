@@ -13,22 +13,30 @@ import collections
 from . import utility
 
 map_nemo_standard_name = {
-    'sea_water_temperature': 'sea_water_potential_temperature',
-    'sea_water_practical_salinity': 'sea_water_practical_salinity',
-    'water_surface_height_above_reference_datum':
+    'sea_water_temperature': [
+        'sea_water_potential_temperature',
+        'sea_surface_temperature',
+    ],
+    'sea_water_practical_salinity': [
+        'sea_water_practical_salinity',
+        'sea_surface_salinity',
+    ],
+    'water_surface_height_above_reference_datum': [
         'sea_surface_height_above_geoid',
-    'specific_turbulent_kinetic_energy_dissipation_in_sea_water':
+    ],
+    'specific_turbulent_kinetic_energy_dissipation_in_sea_water': [
         'turbulent_kinetic_energy_dissipation',
+    ],
 }
 
 # reverse map: standard_name -> short_name
-map_nemo_sname_to_standard = dict((t[1], t[0]) for
-                                  t in map_nemo_standard_name.items())
+map_nemo_sname_to_standard = dict((r, s) for
+                                  s, l in map_nemo_standard_name.items()
+                                  for r in l)
 
 # declare correct netcdf variable name for cases where standard_name is
 # insufficient to find an unique time series
 nemo_ncvar_name = {
-    'slev': 'SSH_inst',
 }
 
 
@@ -615,6 +623,7 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
                                     verbose=True)
     for var in var_list:
         sname = utility.map_var_standard_name[var]
-        nemo_var = map_nemo_standard_name.get(sname, sname)
-        var_name = nemo_ncvar_name.get(var)
-        nreader.dump_dataset(nemo_var, var_name=var_name)
+        nemo_var_list = map_nemo_standard_name.get(sname, sname)
+        for nemo_var in nemo_var_list:
+            var_name = nemo_ncvar_name.get(var)
+            nreader.dump_dataset(nemo_var, var_name=var_name)
