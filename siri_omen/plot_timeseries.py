@@ -34,26 +34,27 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
 
     kwargs.setdefault('linewidth', 1.2)
     for c in cube_list:
-        label = get_label(c, label_attr)
+        _c = utility.constrain_cube_time(c, start_time, end_time)
+        label = get_label(_c, label_attr)
         if label_alias is not None:
             label = label_alias.get(label, label)
-        if isinstance(c.data, numpy.ma.MaskedArray) \
-                and numpy.all(c.data.mask):
+        if isinstance(_c.data, numpy.ma.MaskedArray) \
+                and numpy.all(_c.data.mask):
             # if all data is bad, skip
             continue
         kw = dict(kwargs)
         if style is not None:
-            dataset_id = c.attributes.get('dataset_id')
+            dataset_id = _c.attributes.get('dataset_id')
             st = style.get(dataset_id, None)
             if st is not None:
                 kw.update(st)
-        var = utility.map_var_short_name[c.standard_name]
+        var = utility.map_var_short_name[_c.standard_name]
         if var in plot_unit:
-            _c = c.copy()
-            _c.convert_units(plot_unit[var])
+            _c_units = _c.copy()
+            _c_units.convert_units(plot_unit[var])
         else:
-            _c = c
-        qplt.plot(_c, axes=ax, label=label, **kw)
+            _c_units = _c
+        qplt.plot(_c_units, axes=ax, label=label, **kw)
     if start_time is None and end_time is None and time_extent is not None:
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
@@ -105,10 +106,9 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
         ax.set_ylim(ylim)
 
 
-def save_timeseries_figure(cube_list, output_dir=None, plot_root_dir=None,
-                           **kwargs):
+def make_timeseries_figure(cube_list, **kwargs):
     """
-    Makes a default time series plot and saves it to disk.
+    Makes a default time series plot in a new figure.
     """
     fig = plt.figure(figsize=(12, 5.5))
     ax = fig.add_subplot(111)
@@ -122,6 +122,18 @@ def save_timeseries_figure(cube_list, output_dir=None, plot_root_dir=None,
     plot_timeseries(ax, cube_list, time_extent=time_extent,
                     start_time=start_time, end_time=end_time, **kwargs)
 
+    return fig
+
+
+def save_timeseries_figure(cube_list, output_dir=None, plot_root_dir=None,
+                           **kwargs):
+    """
+    Makes a default time series plot and saves it to disk.
+    """
+    start_time = kwargs.get('start_time', None)
+    end_time = kwargs.get('end_time', None)
+
+    fig = make_timeseries_figure(cube_list, **kwargs)
     imgfile = utility.generate_img_filename(cube_list,
                                             output_dir=output_dir,
                                             root_dir=plot_root_dir,
