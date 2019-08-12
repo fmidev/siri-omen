@@ -165,9 +165,9 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     st = time_coord.units.date2num(start_time)
     et = time_coord.units.date2num(end_time)
     assert et >= time_coord.points[0], \
-        'No overlapping time period found. end_time before first time stamp.'
+        'No overlapping time period found. end_time before first time stamp: {:} > {:} ({:})'.format(end_time, get_cube_datetime(cube, 0), cube.attributes.get('dataset_id', 'N/A'))
     assert st <= time_coord.points[-1], \
-        'No overlapping time period found. start_time after last time stamp.'
+        'No overlapping time period found. start_time after last time stamp: {:} > {:} ({:})'.format(start_time, get_cube_datetime(cube, -1), cube.attributes.get('dataset_id', 'N/A'))
     t = time_coord.points
     ix = numpy.logical_and(t >= st, t <= et)
     assert numpy.any(ix), \
