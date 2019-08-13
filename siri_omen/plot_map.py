@@ -71,18 +71,22 @@ class GeographicPlot(object):
         p = self.ax.plot(x, y, transform=transform, **sty)
         if label_to_legend:
             self.sample_points.append(p)
+            txt = None
         else:
             if textargs is None:
                 textargs = {}
             textargs.setdefault('horizontalalignment', 'left')
             textargs.setdefault('verticalalignment', 'top')
             textargs.setdefault('fontsize', 8)
-            self.add_text(x + 0.1, y, label, transform=transform, **textargs)
+            txt = self.add_text(x + 0.1, y, label,
+                                transform=transform, **textargs)
+        return p, txt
 
     def add_text(self, x, y, text, transform=None, **kwargs):
         if transform is None:
             transform = ccrs.Geodetic()
-        self.ax.text(x, y, text, transform=transform, **kwargs)
+        txt = self.ax.text(x, y, text, transform=transform, **kwargs)
+        return txt
 
     def add_unstructured_mesh(self, x=None, y=None, connectivity=None,
                               tri=None, transform=None, **kwargs):
