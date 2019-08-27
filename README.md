@@ -7,13 +7,11 @@ Post-processing tools for NEMO ocean model outputs.
 ### Install Iris
 
 `siri-omen` uses [Iris](https://scitools.org.uk/iris/docs/latest/) as it's
-data model.
-    Iris is easiest to install with Anaconda Python.
+data model. Iris is easiest to install with Anaconda Python. These instructions have been tested for Anaconda version `Anaconda3-2019.03`.
 
 It recommended to create a specific conda environment for Iris, for example:
 ```bash
 conda create --name iris python=3
-conda activate iris
 ```
 
 The environment must be activated prior usage:
@@ -21,13 +19,13 @@ The environment must be activated prior usage:
 conda activate iris
 ```
 
-Then we can install Iris.
+Then we can install Iris. See the Iris website for up-to-date [installation instructions](https://scitools.org.uk/iris/docs/latest/installing.html).
 
 ```bash
-conda install -c conda-forge
+conda install -c conda-forge iris
 ```
 
-### Install with pip
+### Install siri-omen with pip
 
 Once Iris is installed, and the `iris` environment is active, install
 `siri-omen` with
