@@ -155,6 +155,8 @@ class GeographicPlot(object):
         assert u.shape == v.shape
         kwargs.setdefault('zorder', 3)
         kwargs.setdefault('pivot', 'tail')
+        kwargs.setdefault('headwidth', 4.5)
+        kwargs.setdefault('headlength', 6)
         p = self.ax.quiver(x, y, u, v, transform=transform,
                            **kwargs)
         return p
@@ -180,16 +182,16 @@ class GeographicPlot(object):
         kwargs.setdefault('ncol', ncolumns)
         self.ax.legend(numpoints=1, **kwargs)
 
-    def add_colorbar(self, p, label=None, pad=0.03, cax=None, **kwargs):
+    def add_colorbar(self, p, label=None, width=0.02, pad=0.03, cax=None, **kwargs):
         if cax is None:
             # create colorbar
-            width = 0.02
             pos = self.ax.get_position().bounds
             x = pos[0] + pos[2] + pad * pos[2]
             cax = self.fig.add_axes([x, pos[1], width, pos[3]])
         cb = plt.colorbar(p, cax=cax, **kwargs)
         if label is not None:
             cb.set_label(label)
+        return cb
 
     def add_title(self, title):
         """

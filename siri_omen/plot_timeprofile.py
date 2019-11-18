@@ -49,6 +49,7 @@ def get_plot_time(cube):
 def plot_timeprofile(cube, ax, title=None,
                      start_time=None, end_time=None,
                      log_scale=False, symmetric_scale=False,
+                     label_alias=None,
                      cmap=None, vmin=None, vmax=None, colorbar=True):
     """
     Plot a single cube in the given axes.
@@ -86,6 +87,13 @@ def plot_timeprofile(cube, ax, title=None,
     if _log_scale:
         norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
+    if cube.attributes['dataset_id'][:5] == 'diff:':
+        # this must be a diff field
+        cmap = plt.get_cmap('RdBu_r')
+        val_max = numpy.nanmax(numpy.abs(cube.data))
+        vmin = -val_max
+        vmax = val_max
+
     p = ax.pcolormesh(t, z, _cube.data.T, vmin=vmin, vmax=vmax, cmap=cmap,
                       norm=norm)
     loc = matplotlib.dates.AutoDateLocator()
@@ -98,6 +106,8 @@ def plot_timeprofile(cube, ax, title=None,
     if title is None:
         loc = _cube.attributes['location_name']
         data_id = _cube.attributes['dataset_id']
+        if label_alias is not None:
+            data_id = label_alias.get(data_id, data_id)
         title = ' '.join([loc, data_id])
         ax.set_title(title)
     ax.set_ylabel(ylabel)
@@ -116,8 +126,21 @@ def plot_timeprofile(cube, ax, title=None,
 
 
 def make_timeprofile_plot(cube_list, **kwargs):
-    ncubes = len(cube_list)
+    _cube_list = list(cube_list)
 
+    plot_diff = kwargs.pop('plot_diff', False)
+
+    if plot_diff:
+        # FIXME most hacky
+        diff = _cube_list[1] - _cube_list[0]
+        diff.attributes['location_name'] = _cube_list[0].attributes['location_name']
+        diff.attributes['dataset_id'] = 'diff:{:}-{:}'.format(*[c.attributes['dataset_id'] for c in _cube_list])
+        diff.standard_name = _cube_list[0].standard_name
+        diff.long_name = 'diff:' + _cube_list[0].standard_name
+        diff.units = _cube_list[0].units
+        _cube_list.append(diff)
+
+    ncubes = len(_cube_list)
     plot_height = 3.5
     fig = plt.figure(figsize=(12, ncubes * plot_height))
     sharey = kwargs.pop('share_y_axis', True)
@@ -126,11 +149,11 @@ def make_timeprofile_plot(cube_list, **kwargs):
         ax_list = [ax_list]
 
     if 'vmin' not in kwargs or kwargs['vmin'] is None:
-        kwargs['vmin'] = numpy.min([numpy.nanmin(c.data) for c in cube_list])
+        kwargs['vmin'] = numpy.min([numpy.nanmin(c.data) for c in _cube_list])
     if 'vmax' not in kwargs or kwargs['vmax'] is None:
-        kwargs['vmax'] = numpy.max([numpy.nanmax(c.data) for c in cube_list])
+        kwargs['vmax'] = numpy.max([numpy.nanmax(c.data) for c in _cube_list])
 
-    for cube, ax in zip(cube_list, ax_list):
+    for cube, ax in zip(_cube_list, ax_list):
         plot_timeprofile(cube, ax, **kwargs)
 
     return fig

@@ -59,9 +59,10 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
     ax.set_xlim(start_time, end_time)
-    if legend_kwargs is None:
-        legend_kwargs = {'loc': 'upper left', 'bbox_to_anchor': (1.02, 1.0)}
-    plt.legend(**legend_kwargs)
+    lkw = {'loc': 'upper left', 'bbox_to_anchor': (1.02, 1.0)}
+    if legend_kwargs is not None:
+        lkw.update(legend_kwargs)
+    plt.legend(**lkw)
     if title is None:
         loc_names = [c.attributes['location_name'] for c in cube_list]
         dep_strs = ['{:.1f} m'.format(
