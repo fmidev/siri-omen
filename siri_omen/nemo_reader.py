@@ -67,6 +67,7 @@ class NearestNeighborFinder():
 
             returns 't', 'u', or 'v'
             """
+            return 't'  # HACK assume always T grid
             desc = ncf.description
             words = desc.split()
             assert words[0] == 'ocean'
@@ -81,7 +82,7 @@ class NearestNeighborFinder():
             if self.data_dim == 3:
                 # NOTE does not take time-dependent wetting-drying into account
                 e = ncf['e3t'][0, :, :, :]
-                self.landmask = numpy.all(e.mask, axis=0).T
+                self.landmask = numpy.all(e.mask, axis=0)
                 # 1D array of all wet points in raveled index
                 self.wetmask = numpy.nonzero(~self.landmask.ravel())[0]
                 # get coordinates
@@ -90,15 +91,15 @@ class NearestNeighborFinder():
                 depth = ncf['deptht'][:]
                 self.z = -depth
                 # 1D arrays of all wet points
-                self.valid_lon = self.lon.T.ravel()[self.wetmask]
-                self.valid_lat = self.lat.T.ravel()[self.wetmask]
+                self.valid_lon = self.lon.ravel()[self.wetmask]
+                self.valid_lat = self.lat.ravel()[self.wetmask]
             else:
                 # read a field to get landmask
                 for v in ncf.variables:
                     var = ncf[v]
                     if len(var.shape) == 3:
                         # 2D time dependent field
-                        self.landmask = numpy.all(var[:].mask, axis=0).T
+                        self.landmask = numpy.all(var[:].mask, axis=0)
                         break
                 self.wetmask = numpy.nonzero(~self.landmask.ravel())[0]
                 # get coordinates
@@ -106,8 +107,8 @@ class NearestNeighborFinder():
                 self.lat = ncf['nav_lat'][:]
                 self.z = 0.0
                 # 1D arrays of all wet points
-                self.valid_lon = self.lon.T.ravel()[self.wetmask]
-                self.valid_lat = self.lat.T.ravel()[self.wetmask]
+                self.valid_lon = self.lon.ravel()[self.wetmask]
+                self.valid_lat = self.lat.ravel()[self.wetmask]
 
         assert len(self.valid_lat) > 0, \
             'No valid points found in {:}'.format(self.filename)
@@ -391,9 +392,9 @@ class TimeSeriesExtractor():
                 assert ncvar is not None, \
                     'Variable {:} not found in {:}'.format(var, filename)
                 if self.nn_finder.data_dim == 3 and len(ncvar.shape) == 4:
-                    values = ncvar[:, k, j, i]
+                    values = ncvar[:, k, i, j]
                 else:
-                    values = ncvar[:, j, i]
+                    values = ncvar[:, i, j]
                 units = ncvar.units
                 long_name = ncvar.long_name
                 timevar = f['time_centered']
