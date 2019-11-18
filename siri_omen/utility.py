@@ -37,6 +37,9 @@ map_var_standard_name = {
     'icearea': 'sea_ice_area',
     'iceextent': 'sea_ice_extent',
     'icevol': 'sea_ice_volume',
+    'icethick': 'sea_ice_thickness',
+    'iceminthick': 'sea_ice_min_thickness',
+    'icemaxthick': 'sea_ice_max_thickness',
 }
 
 # reverse map: standard_name -> short_name
@@ -251,6 +254,9 @@ def gen_filename(cube, root_dir='obs'):
     location_name = cube.attributes['location_name']
     dataset_id = cube.attributes['dataset_id']
     var = cube.standard_name
+    if var is None:
+        var = cube.long_name
+    assert var is not None, 'Cannot generate file name, either standard_name or long_name is required'
     var = map_var_short_name[var]
     start_time = get_cube_datetime(cube, 0)
     end_time = get_cube_datetime(cube, -1)
