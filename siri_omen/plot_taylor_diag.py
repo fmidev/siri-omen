@@ -13,7 +13,8 @@ import mpl_toolkits.axisartist.grid_finder as grid_finder
 from cycler import cycler
 from . import utility
 from . import statistics
-
+from collections import OrderedDict, defaultdict
+from itertools import cycle
 
 __all__ = [
     'TaylorDiagram',
@@ -22,6 +23,8 @@ __all__ = [
     'save_taylor_diagram',
     'get_point_style_cycler',
     'get_cube_stats',
+    'CubeStyler',
+    'cycler',
 ]
 
 
@@ -42,6 +45,51 @@ def get_point_style_cycler():
     # loop first over colors, then markers
     style = marker_cy * color_cy * linestyle_cy
     return style
+
+
+class CubeStyler:
+    """
+    Associates unique marker style to cube objects.
+
+    CubeStyler(cube_list, ('attribute', cycler), ...)
+
+    e.g. set color for each cube by its `dataset_id`:
+
+        cycler = cycler(color=['r', 'b', 'k'])
+        styler = CubeStyler(cube_list, ('dataset_id', cycler))
+        for c in cube list:
+            kw = styler.get_style(c)
+            plot(..., **kw)
+
+    """
+    def __init__(self, cube_list, *args):
+        """
+        Create a Styler object.
+
+        CubeStyler(cube_list, ('attribute', cycler), ...)
+        """
+
+        def _get_styles(attrname, cycler):
+            # find all unique attribute values
+            all_vals = set([c.attributes.get(attrname) for c in cube_list])
+            all_vals = sorted(list(all_vals))
+            # map to style
+            styles = {}
+            cy_iter = cycle(cycler)
+            for v in all_vals:
+                styles[v] = next(cy_iter)
+            return styles
+
+        self.styles = OrderedDict()
+        for attrname, cycler in args:
+            self.styles[attrname] = _get_styles(attrname, cycler)
+
+    def get_style(self, cube):
+        out = {}
+        for attrname, style in self.styles.items():
+            attr = cube.attributes.get(attrname, None)
+            out.update(style[attr])
+        return out
 
 
 class TaylorDiagram(object):
@@ -182,7 +230,7 @@ class TaylorDiagram(object):
         kwargs.setdefault('loc', 'upper left')
         kwargs.setdefault('bbox_to_anchor', (0.98, 1.0))
         nsamples = len(self.sample_points)
-        ncolumns = int(numpy.ceil(float(nsamples) / 20))
+        ncolumns = int(numpy.ceil(float(nsamples) / 30))
         kwargs.setdefault('ncol', ncolumns)
         self.ax.legend(numpoints=1, **kwargs)
 
@@ -204,16 +252,22 @@ def get_cube_stats(r, p, normalized, add_crmse_sign=False):
 def _compute_pairwise_stats(cube_pairs, normalized, add_crmse_sign=False):
     pair_stats = []
     for o, m in cube_pairs:
-        obs_stats, mod_stats = get_cube_stats(o, m, normalized,
-                                              add_crmse_sign=add_crmse_sign)
-        pair_stats.append((o, m, obs_stats, mod_stats))
+        try:
+            obs_stats, mod_stats = get_cube_stats(o, m, normalized,
+                                                add_crmse_sign=add_crmse_sign)
+            pair_stats.append((o, m, obs_stats, mod_stats))
+        except AssertionError as e:
+            print('Cannot compute statistics, skipping: {:} {:}'.format(
+                o.attributes['dataset_id'], o.attributes['location_name']))
     return pair_stats
 
 
 def _plot_taylor(cube_pairs, ref_stddev, normalized,
                  pair_stats=None,
                  fig=None, rect=None, add_legend=True,
-                 label_attr='dataset_id', ref_label=None, title=None):
+                 label_attr='dataset_id', ref_label=None, title=None,
+                 label_alias=None,
+                 styler_args=None, legend_args=None):
 
     if fig is None:
         fig = plt.figure(figsize=(9, 9))
@@ -229,13 +283,33 @@ def _plot_taylor(cube_pairs, ref_stddev, normalized,
     if pair_stats is None:
         pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
                                              add_crmse_sign=True)
+    # print_stats_summary(pair_stats, 'crmse')
 
-    for o, m, o_stats, m_stats in pair_stats:
+    if styler_args is not None:
+        mod_list = [t[1] for t in cube_pairs]
+        styler = CubeStyler(mod_list, *styler_args)
+
+    seen = set()
+    for i, entry in enumerate(pair_stats):
+        o, m, o_stats, m_stats = entry
         label = m.attributes.get(label_attr)
+        if label_alias is not None:
+            label = label_alias.get(label, label)
+        if label in seen:
+            label = '_' + label
+        else:
+            seen.add(label)
+        kw = {}
+        kw['zorder'] = 2 + float(i)/10.
+        if styler_args is not None:
+            kw.update(styler.get_style(m))
         dia.add_sample(m_stats['stddev'], m_stats['corrcoef'],
-                       label=label)
+                       label=label, **kw)
     if add_legend:
-        dia.add_legend()
+        kw = {}
+        if legend_args is not None:
+            kw.update(legend_args)
+        dia.add_legend(**kw)
 
     if title is None:
         var_list = [p[0].standard_name.replace('_', ' ') for p in cube_pairs]
@@ -244,7 +318,7 @@ def _plot_taylor(cube_pairs, ref_stddev, normalized,
         dataset_list += [p[1].attributes['dataset_id'] for p in cube_pairs]
         dataset_str = ' '.join(utility.unique(dataset_list))
         title = dataset_str + ': ' + var_str
-        dia.add_title(title)
+    dia.add_title(title)
 
     # update standard deviation label
     s_ax = dia._ax.axis["left"]
@@ -274,7 +348,8 @@ def plot_normalized_taylor_diagram(cube_pairs, **kwargs):
     return _plot_taylor(cube_pairs, ref_stddev, normalized, **kwargs)
 
 
-def save_taylor_diagram(cube_pairs, output_dir=None, **kwargs):
+def save_taylor_diagram(cube_pairs, output_dir=None,
+                        plot_root_dir=None, **kwargs):
     """
     Makes a default Taylor diagram and saves it to disk.
     """
@@ -284,7 +359,8 @@ def save_taylor_diagram(cube_pairs, output_dir=None, **kwargs):
     cube_list = [p[0] for p in cube_pairs] + [p[1] for p in cube_pairs]
     imgfile = utility.generate_img_filename(cube_list,
                                             loc_str='stations',
-                                            root_dir=output_dir,
+                                            output_dir=output_dir,
+                                            root_dir=plot_root_dir,
                                             prefix='taylor')
     dir, filename = os.path.split(imgfile)
     utility.create_directory(dir)
@@ -292,3 +368,20 @@ def save_taylor_diagram(cube_pairs, output_dir=None, **kwargs):
     print('Saving image {:}'.format(imgfile))
     fig.savefig(imgfile, dpi=200, bbox_inches='tight')
     plt.close(fig)
+
+
+def print_stats_summary(pair_stats, metric):
+    data = defaultdict(dict)
+    for o, m, o_stats, m_stats in pair_stats:
+        model_id = m.attributes['dataset_id']
+        loc = m.attributes['location_name']
+        data[loc][model_id] = abs(m_stats[metric])
+    all_locations = sorted([k for k in data if len(data[k]) == 2])
+    model_id_list = sorted(list(set([l for k in data for l in data[k]])))
+    print('{:20s}'.format(metric))
+    print('{:20s}: {:7s} {:7s}'.format('station', *model_id_list))
+    for loc in all_locations:
+        vals = [data[loc][id] for id in model_id_list]
+        better = vals[1] < vals[0]
+        marker = '*' if better else ''
+        print('{:20s}: {:7.3f} {:7.3f} {:}'.format(loc, vals[0], vals[1], marker))

@@ -6,10 +6,9 @@ import os
 import numpy
 import matplotlib.pyplot as plt
 from . import utility
-from .plot_taylor_diag import get_point_style_cycler
+from .plot_taylor_diag import get_point_style_cycler, CubeStyler, cycler
 from .plot_taylor_diag import _compute_pairwise_stats
 from . import plot_taylor_diag as taylor
-
 
 __all__ = [
     'TargetDiagram',
@@ -127,7 +126,7 @@ class TargetDiagram(object):
         kwargs.setdefault('loc', 'upper left')
         kwargs.setdefault('bbox_to_anchor', (1.01, 1.0))
         nsamples = len(self.sample_points)
-        ncolumns = int(numpy.ceil(float(nsamples) / 20))
+        ncolumns = int(numpy.ceil(float(nsamples) / 30))
         kwargs.setdefault('ncol', ncolumns)
         self.ax.legend(numpoints=1, **kwargs)
 
@@ -142,7 +141,9 @@ def _plot_target(cube_pairs, normalized,
                  pair_stats=None,
                  fig=None, rect=None, add_legend=True,
                  datalim=None,
-                 label_attr='dataset_id', title=None):
+                 label_attr='dataset_id', title=None,
+                 label_alias=None,
+                 styler_args=None, legend_args=None):
 
     if fig is None:
         fig = plt.figure(figsize=(9, 9))
@@ -153,12 +154,30 @@ def _plot_target(cube_pairs, normalized,
         pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
                                              add_crmse_sign=True)
 
+    if styler_args is not None:
+        mod_list = [t[1] for t in cube_pairs]
+        styler = CubeStyler(mod_list, *styler_args)
+
+    seen = set()
     for o, m, o_stats, m_stats in pair_stats:
         label = m.attributes.get(label_attr)
+        if label_alias is not None:
+            label = label_alias.get(label, label)
+        if label in seen:
+            label = '_' + label
+        else:
+            seen.add(label)
+        kw = {}
+        if styler_args is not None:
+            kw.update(styler.get_style(m))
         dia.add_sample(m_stats['crmse'], m_stats['bias'],
-                       label=label)
+                       label=label, **kw)
+
     if add_legend:
-        dia.add_legend()
+        kw = {}
+        if legend_args is not None:
+            kw.update(legend_args)
+        dia.add_legend(**kw)
 
     if title is None:
         var_list = [p[0].standard_name.replace('_', ' ') for p in cube_pairs]
@@ -167,7 +186,7 @@ def _plot_target(cube_pairs, normalized,
         dataset_list += [p[1].attributes['dataset_id'] for p in cube_pairs]
         dataset_str = ' '.join(utility.unique(dataset_list))
         title = dataset_str + ': ' + var_str
-        dia.add_title(title)
+    dia.add_title(title)
 
     # update axis labels
     xlabel = dia.ax.get_xlabel()
@@ -200,7 +219,8 @@ def plot_normalized_target_diagram(cube_pairs, **kwargs):
     return _plot_target(cube_pairs, normalized, **kwargs)
 
 
-def save_target_diagram(cube_pairs, output_dir=None, **kwargs):
+def save_target_diagram(cube_pairs, output_dir=None,
+                        plot_root_dir=None, **kwargs):
     """
     Makes a default target diagram and saves it to disk.
     """
@@ -210,7 +230,8 @@ def save_target_diagram(cube_pairs, output_dir=None, **kwargs):
     cube_list = [p[0] for p in cube_pairs] + [p[1] for p in cube_pairs]
     imgfile = utility.generate_img_filename(cube_list,
                                             loc_str='stations',
-                                            root_dir=output_dir,
+                                            output_dir=output_dir,
+                                            root_dir=plot_root_dir,
                                             prefix='target')
     dir, filename = os.path.split(imgfile)
     utility.create_directory(dir)
@@ -229,12 +250,14 @@ def _plot_taylor_target(cube_pairs, normalized, **kwargs):
     pair_stats = _compute_pairwise_stats(cube_pairs, normalized,
                                          add_crmse_sign=True)
     title = kwargs.pop('title', None)
+    add_legend = kwargs.pop('add_legend', True)
     taylor_dia = taylor.plot_normalized_taylor_diagram(
         cube_pairs, pair_stats=pair_stats,
-        fig=fig, rect=121, add_legend=False, title='', **kwargs)
+        fig=fig, rect=121, title='', add_legend=False, **kwargs)
     target_dia = plot_normalized_target_diagram(
         cube_pairs, pair_stats=pair_stats,
-        fig=fig, rect=122, add_legend=True, datalim=target_datalim, **kwargs)
+        fig=fig, rect=122, datalim=target_datalim,
+        add_legend=add_legend, **kwargs)
     if title is None:
         title = target_dia.ax.get_title()
     target_dia.ax.set_title(title, x=-0.04)
