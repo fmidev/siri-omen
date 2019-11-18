@@ -37,12 +37,18 @@ def _get_location_name(cube):
         return None
 
     location_name = None
-    location_name = read_attr('platform_name')
-    if location_name is None:
-        location_name = read_attr('platform_code')
-    if location_name is None:
-        location_name = read_attr('site_code')
+    attr_names = [
+        'platform_name',
+        'platform_code',
+        'site_code',
+        'wmo_platform_code',
+    ]
+    for n in attr_names:
+        location_name = read_attr(n)
+        if not (location_name is None or location_name.isspace()):
+            break
     assert location_name is not None
+    assert not location_name.isspace()
     assert location_name != ''
     if location_name[-2:] == 'TG':
         location_name = location_name[:-2]
@@ -134,7 +140,7 @@ def import_cmems_timeseries(dataset_id,
                                         verbose=verbose)
             for cube in cube_list:
                 location_name = _get_location_name(cube)
-                depth_str = utility.get_depth_sring(cube)
+                depth_str = utility.get_depth_string(cube)
                 key = '-'.join([location_name, depth_str])
                 cube.attributes['location_name'] = location_name
                 cube.attributes['dataset_id'] = dataset_id

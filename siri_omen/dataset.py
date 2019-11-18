@@ -55,13 +55,13 @@ def read_dataset(dataset_id, datatype, variable,
                 c = utility.constrain_cube_time(c, start_time=start_time,
                                                 end_time=end_time)
             if datatype in ['timeseries', 'timeprofile']:
-                dep_str = utility.get_depth_sring(c)
+                dep_str = utility.get_depth_string(c)
                 key = '-'.join((c.attributes['location_name'], dep_str))
             else:
                 start_str = utility.get_cube_datetime(c, 0).strftime('%Y-%m-%d')
                 key = '-'.join((c.attributes['location_name'], start_str))
             d[key] = c
-        except Exception as e:
+        except AssertionError as e:
             print('Could not read file: {:}'.format(f))
             print(e)
     return d

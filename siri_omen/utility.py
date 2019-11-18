@@ -86,7 +86,7 @@ def get_cube_datetime(cube, index):
     return time.units.num2date(time.points[index])
 
 
-def get_depth_sring(cube):
+def get_depth_string(cube):
     depth = cube.coord('depth').points.mean()
     depth_str = 'd{:.2f}m'.format(depth)
     return depth_str
@@ -172,11 +172,17 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     ix = numpy.logical_and(t >= st, t <= et)
     assert numpy.any(ix), \
         'Time extraction failed: {:} {:}'.format(start_time, end_time)
-    shape = cube.shape
-    extract = [slice(None)] * len(shape)
-    t_index = cube.coord_dims('time')[0]
-    extract[t_index] = ix
-    new_cube = cube[tuple(extract)]
+    time_dims = cube.coord_dims('time')
+    if len(time_dims) > 0:
+        assert len(time_dims) == 1
+        t_index = time_dims[0]
+        shape = cube.shape
+        extract = [slice(None)] * len(shape)
+        extract[t_index] = ix
+        new_cube = cube[tuple(extract)]
+    else:
+        # only one time stamp; scalar coord
+        new_cube = cube
     return new_cube
 
 
@@ -257,7 +263,7 @@ def gen_filename(cube, root_dir='obs'):
     if datatype in ['profile', 'timeprofile', 'timetransect']:
         parts = [prefix, location_name, dataset_id, var, date_str]
     else:
-        depth_str = get_depth_sring(cube)
+        depth_str = get_depth_string(cube)
         parts = [prefix, location_name, depth_str, dataset_id, var, date_str]
     fname = '_'.join(parts) + '.nc'
     dir = root_dir if root_dir is not None else ''
@@ -331,6 +337,10 @@ def generate_img_filename(cube_list, prefix=None, loc_str=None,
         start_time = min([get_cube_datetime(c, 0) for c in cube_list])
         date_str = start_time.strftime('%Y-%m-%d')
 
+    if datatype == 'timeseries':
+        depth_str_list = [get_depth_string(c) for c in cube_list]
+        depth_str = '-'.join(unique(depth_str_list))
+        loc_str += '_' + depth_str
     imgfile = '_'.join((prefix, loc_str, var_str, date_str))
     imgfile += '.png'
 
@@ -368,7 +378,7 @@ def load_cube(input_file, var):
 
 def save_cube(cube, root_dir=None, fname=None):
     """
-    Saves a cube in to disk.
+    Saves a cube to disk.
     """
     if fname is None:
         fname = gen_filename(cube, root_dir=root_dir)
@@ -391,6 +401,7 @@ def align_cubes(first, second):
 
     # find non-scalar coordinate
     coords = [c.name() for c in o.coords() if len(c.points) > 1]
+    assert len(coords) > 0, 'data must contain more than one point'
     coord_name = coords[0]
 
     # convert model time to obs time
