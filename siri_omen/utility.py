@@ -454,7 +454,6 @@ def compute_cube_statistics(reference, predicted):
     return statistics.compute_statistics(r, p)
 
 
-<<<<<<< HEAD
 def cube_cell_thicknesses(cube, return_dictionary=False):
     """
     calculates thicknesses for each depth on the cube.
@@ -473,7 +472,8 @@ def cube_cell_thicknesses(cube, return_dictionary=False):
         return thickness_dictionary
     else:
         return cell_thicknesses
-=======
+
+
 def crop_invalid_depths(cube):
     """
     Removes depth values that have all invalid values.
@@ -492,7 +492,6 @@ def crop_invalid_depths(cube):
     filter = tuple(filter)
     cube2 = cube[filter]
     return cube2
->>>>>>> master
 
 
 def cube_volumes(cube):
@@ -523,11 +522,7 @@ def cube_volumes(cube):
     # dimensions stay same, but each has just one entry.
     new_shape[depth_coord] = volumes.shape[depth_coord]
     # depth axis is real lenght
-<<<<<<< HEAD
-    volumes.data.data[:] = volumes.data.data*cell_thickness.reshape(new_shape)
-=======
     volumes = volumes * cell_thickness.reshape(new_shape)
->>>>>>> master
     return volumes
 
 
