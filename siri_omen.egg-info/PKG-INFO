@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: siri-omen
+Version: 0.0.1
+Summary: Post-processing tools for NEMO ocean model
+Home-page: UNKNOWN
+Author: Tuomas Karna
+Author-email: tuomas.karna@fmi.fi
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown

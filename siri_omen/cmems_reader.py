@@ -29,12 +29,29 @@ def _get_depth_coord(input_file, var):
 
 
 def _get_location_name(cube):
-    if 'platform_name' in cube.attributes:
-        location_name = cube.attributes['platform_name']
-    elif 'platform_code' in cube.attributes:
-        location_name = cube.attributes['platform_code']
-    else:
-        location_name = cube.attributes['site_code']
+    attr = cube.attributes
+
+    def read_attr(name):
+        if name in attr and attr[name] != '':
+            return attr[name]
+        return None
+
+    location_name = None
+    attr_names = [
+        'platform_name',
+        'platform_code',
+        'site_code',
+        'wmo_platform_code',
+    ]
+    for n in attr_names:
+        location_name = read_attr(n)
+        if not (location_name is None or location_name.isspace()):
+            break
+    assert location_name is not None
+    assert not location_name.isspace()
+    assert location_name != ''
+    if location_name[-2:] == 'TG':
+        location_name = location_name[:-2]
     return location_name
 
 
@@ -90,6 +107,7 @@ def import_cmems_timeseries(dataset_id,
                             start_time=None, end_time=None,
                             outputdir=None,
                             skip_station_list=None,
+                            include_station_list=None,
                             verbose=False):
     """
     Read CMEMS time series multiple netCDF files and stores it to disk.
@@ -102,8 +120,10 @@ def import_cmems_timeseries(dataset_id,
     :kwarg datetime start_time: first time stamp to accept (optional)
     :kwarg datetime end_time: last time stamp to accept (optional)
     :kwarg str outputdir: root directory of the stored files
+        (default: dataset_id)
     :kwarg skip_station_list: list of station names that will be skipped.
-    (default: dataset_id)
+    :kwarg include_station_list: If provided, read only netcdf files that
+        contain one of these names.
     """
     all_cubes = defaultdict(iris.cube.CubeList)
 
@@ -111,12 +131,16 @@ def import_cmems_timeseries(dataset_id,
 
     # check all matching files, try to read given variable
     for f in file_list:
+        if include_station_list is not None:
+            # check that f contains at least one of the names
+            if not any([s in f for s in include_station_list]):
+                continue
         try:
             cube_list = read_cmems_file(f, standard_name, start_time, end_time,
                                         verbose=verbose)
             for cube in cube_list:
                 location_name = _get_location_name(cube)
-                depth_str = utility.get_depth_sring(cube)
+                depth_str = utility.get_depth_string(cube)
                 key = '-'.join([location_name, depth_str])
                 cube.attributes['location_name'] = location_name
                 cube.attributes['dataset_id'] = dataset_id

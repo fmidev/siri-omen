@@ -38,6 +38,9 @@ map_var_standard_name = {
     'icearea': 'sea_ice_area',
     'iceextent': 'sea_ice_extent',
     'icevol': 'sea_ice_volume',
+    'icethick': 'sea_ice_thickness',
+    'iceminthick': 'sea_ice_min_thickness',
+    'icemaxthick': 'sea_ice_max_thickness',
 }
 
 # reverse map: standard_name -> short_name
@@ -54,6 +57,7 @@ map_short_datatype = {
     'timeseries': 'ts',
     'profile': 'prof',
     'timeprofile': 'tprof',
+    'timetransect': 'trans',
 }
 
 epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
@@ -86,7 +90,7 @@ def get_cube_datetime(cube, index):
     return time.units.num2date(time.points[index])
 
 
-def get_depth_sring(cube):
+def get_depth_string(cube):
     depth = cube.coord('depth').points.mean()
     depth_str = 'd{:.2f}m'.format(depth)
     return depth_str
@@ -165,12 +169,24 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     st = time_coord.units.date2num(start_time)
     et = time_coord.units.date2num(end_time)
     assert et >= time_coord.points[0], \
-        'No overlapping time period found. end_time before first time stamp.'
+        'No overlapping time period found. end_time before first time stamp: {:} > {:} ({:})'.format(end_time, get_cube_datetime(cube, 0), cube.attributes.get('dataset_id', 'N/A'))
     assert st <= time_coord.points[-1], \
-        'No overlapping time period found. start_time after last time stamp.'
-    time_constrain = iris.Constraint(
-        coord_values={'time': lambda t: st <= t.point <= et})
-    new_cube = cube.extract(time_constrain)
+        'No overlapping time period found. start_time after last time stamp: {:} > {:} ({:})'.format(start_time, get_cube_datetime(cube, -1), cube.attributes.get('dataset_id', 'N/A'))
+    t = time_coord.points
+    ix = numpy.logical_and(t >= st, t <= et)
+    assert numpy.any(ix), \
+        'Time extraction failed: {:} {:}'.format(start_time, end_time)
+    time_dims = cube.coord_dims('time')
+    if len(time_dims) > 0:
+        assert len(time_dims) == 1
+        t_index = time_dims[0]
+        shape = cube.shape
+        extract = [slice(None)] * len(shape)
+        extract[t_index] = ix
+        new_cube = cube[tuple(extract)]
+    else:
+        # only one time stamp; scalar coord
+        new_cube = cube
     return new_cube
 
 
@@ -179,24 +195,30 @@ def get_cube_datatype(cube):
     Detect cube datatype.
 
     Supported datatypes are:
-    point       - ()
-    timeseries  - (time)
-    profile     - (depth)
-    timeprofile - (time, depth)
+    point        - ()
+    timeseries   - (time)
+    profile      - (depth)
+    timeprofile  - (time, depth)
+    timetransect - (time, depth, index)
     """
     coords = [c.name() for c in cube.coords()]
     has_depth = 'depth' in coords
     has_time = 'time' in coords
+    ndims = len(cube.shape)
     if has_depth:
         ndepth = len(cube.coord('depth').points)
     if has_time:
         ntime = len(cube.coord('time').points)
-    if (has_time and ntime > 1) and (has_depth and ndepth == 1):
+    depth_dep = has_depth and ndepth > 1
+    time_dep = has_time and ntime > 1
+    if time_dep and (has_depth and ndepth == 1) and ndims == 1:
         datatype = 'timeseries'
-    elif (has_time and ntime == 1) and (has_depth and ndepth > 1):
+    elif (has_time and ntime == 1) and depth_dep and ndims == 1:
         datatype = 'profile'
-    elif (has_time and ntime > 1) and (has_depth and ndepth > 1):
+    elif time_dep and depth_dep and ndims == 2:
         datatype = 'timeprofile'
+    elif time_dep and depth_dep and ndims == 3:
+        datatype = 'timetransect'
     else:
         print(cube)
         print('has time : {:} n={:}'.format(
@@ -233,6 +255,9 @@ def gen_filename(cube, root_dir='obs'):
     location_name = cube.attributes['location_name']
     dataset_id = cube.attributes['dataset_id']
     var = cube.standard_name
+    if var is None:
+        var = cube.long_name
+    assert var is not None, 'Cannot generate file name, either standard_name or long_name is required'
     var = map_var_short_name[var]
     start_time = get_cube_datetime(cube, 0)
     end_time = get_cube_datetime(cube, -1)
@@ -242,10 +267,10 @@ def gen_filename(cube, root_dir='obs'):
     else:
         date_str = '_'.join([d.strftime('%Y-%m-%d')
                              for d in [start_time, end_time]])
-    if datatype in ['profile', 'timeprofile']:
+    if datatype in ['profile', 'timeprofile', 'timetransect']:
         parts = [prefix, location_name, dataset_id, var, date_str]
     else:
-        depth_str = get_depth_sring(cube)
+        depth_str = get_depth_string(cube)
         parts = [prefix, location_name, depth_str, dataset_id, var, date_str]
     fname = '_'.join(parts) + '.nc'
     dir = root_dir if root_dir is not None else ''
@@ -253,6 +278,17 @@ def gen_filename(cube, root_dir='obs'):
     create_directory(dir)
     fname = os.path.join(dir, fname)
     return fname
+
+
+def remove_cube_mean(cube):
+    """
+    Remove (temporal) mean from the cube.
+
+    :returns: a new Cube object
+    """
+    new_cube = cube.copy()
+    new_cube.data -= cube.collapsed('time', iris.analysis.MEAN).data
+    return new_cube
 
 
 def get_common_time_overlap(cube_list, mode='union'):
@@ -273,7 +309,8 @@ def get_common_time_overlap(cube_list, mode='union'):
     return start_time, end_time
 
 
-def generate_img_filename(cube_list, prefix=None, loc_str=None, root_dir=None,
+def generate_img_filename(cube_list, prefix=None, loc_str=None,
+                          output_dir=None, root_dir=None,
                           start_time=None, end_time=None):
     """
     Generate a canonical name for a vertical profile image file.
@@ -299,20 +336,30 @@ def generate_img_filename(cube_list, prefix=None, loc_str=None, root_dir=None,
             start_time, end_time = get_common_time_overlap(cube_list, 'union')
         date_str = '_'.join(
             [d.strftime('%Y-%m-%d') for d in [start_time, end_time]])
+    elif datatype in ['timetransect']:
+        if start_time is None or end_time is None:
+            start_time, end_time = get_common_time_overlap(cube_list, 'union')
+        date_str = start_time.strftime('%Y-%m-%dT%H-%M')
     else:
         start_time = min([get_cube_datetime(c, 0) for c in cube_list])
         date_str = start_time.strftime('%Y-%m-%d')
 
+    if datatype == 'timeseries':
+        depth_str_list = [get_depth_string(c) for c in cube_list]
+        depth_str = '-'.join(unique(depth_str_list))
+        loc_str += '_' + depth_str
     imgfile = '_'.join((prefix, loc_str, var_str, date_str))
     imgfile += '.png'
 
     if root_dir is None:
+        root_dir = 'plots'
+    if output_dir is None:
         id_list = [c.attributes['dataset_id'] for c in cube_list]
         id_list = sorted(unique(id_list))
         data_id_str = '-'.join(id_list)
-        root_dir = os.path.join('plots', data_id_str, datatype, var_str)
+        output_dir = os.path.join(root_dir, data_id_str, datatype, var_str)
 
-    imgfile = os.path.join(root_dir, imgfile)
+    imgfile = os.path.join(output_dir, imgfile)
 
     return imgfile
 
@@ -338,7 +385,7 @@ def load_cube(input_file, var):
 
 def save_cube(cube, root_dir=None, fname=None):
     """
-    Saves a cube in to disk.
+    Saves a cube to disk.
     """
     if fname is None:
         fname = gen_filename(cube, root_dir=root_dir)
@@ -361,6 +408,7 @@ def align_cubes(first, second):
 
     # find non-scalar coordinate
     coords = [c.name() for c in o.coords() if len(c.points) > 1]
+    assert len(coords) > 0, 'data must contain more than one point'
     coord_name = coords[0]
 
     # convert model time to obs time
@@ -383,7 +431,17 @@ def concatenate_cubes(cube_list):
     """
     list = iris.cube.CubeList(cube_list)
     equalise_attributes(list)
+    cube0 = cube_list[0]
+    has_depth = 'depth' in [c.name() for c in cube0.coords()]
+    is_transect = has_depth and len(cube0.coord_dims('depth')) == 2
+    if is_transect:
+        depth_coord = cube0.coord('depth')
+        depth_dims = cube0.coord_dims(depth_coord)
+        for c in list:
+            c.remove_coord('depth')
     cube = list.concatenate_cube()
+    if is_transect:
+        cube.add_aux_coord(depth_coord, depth_dims)
     return cube
 
 
@@ -396,6 +454,7 @@ def compute_cube_statistics(reference, predicted):
     return statistics.compute_statistics(r, p)
 
 
+<<<<<<< HEAD
 def cube_cell_thicknesses(cube, return_dictionary=False):
     """
     calculates thicknesses for each depth on the cube.
@@ -414,6 +473,26 @@ def cube_cell_thicknesses(cube, return_dictionary=False):
         return thickness_dictionary
     else:
         return cell_thicknesses
+=======
+def crop_invalid_depths(cube):
+    """
+    Removes depth values that have all invalid values.
+    """
+    datatype = get_cube_datatype(cube)
+    assert datatype in ['timeprofile', 'timetransect']
+    depth_ix = cube.coord_dims('depth')
+    #assert len(depth_ix) == 1
+    depth_ix = depth_ix[0]
+    ndims = len(cube.shape)
+    good_depth = cube.data
+    collapse_dims = tuple(i for i in range(ndims) if i != depth_ix)
+    good_depth = numpy.isfinite(good_depth).any(axis=collapse_dims)
+    filter = [slice(None)] * ndims
+    filter[depth_ix] = good_depth
+    filter = tuple(filter)
+    cube2 = cube[filter]
+    return cube2
+>>>>>>> master
 
 
 def cube_volumes(cube):
@@ -444,7 +523,11 @@ def cube_volumes(cube):
     # dimensions stay same, but each has just one entry.
     new_shape[depth_coord] = volumes.shape[depth_coord]
     # depth axis is real lenght
+<<<<<<< HEAD
     volumes.data.data[:] = volumes.data.data*cell_thickness.reshape(new_shape)
+=======
+    volumes = volumes * cell_thickness.reshape(new_shape)
+>>>>>>> master
     return volumes
 
 

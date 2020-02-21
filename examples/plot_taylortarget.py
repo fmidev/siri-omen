@@ -32,4 +32,3 @@ for var in var_list:
     # save_taylor_diagram(cube_pairs, label_attr='location_name')
     save_taylor_target_diagram(cube_pairs, label_attr='location_name',
                                target_datalim=2.2)
-

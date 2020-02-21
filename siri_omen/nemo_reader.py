@@ -13,24 +13,30 @@ import collections
 from . import utility
 
 map_nemo_standard_name = {
-    'sea_water_temperature': 'sea_water_potential_temperature',
-    'sea_water_practical_salinity': 'sea_water_practical_salinity',
-    'water_surface_height_above_reference_datum':
+    'sea_water_temperature': [
+        'sea_water_potential_temperature',
+        'sea_surface_temperature',
+    ],
+    'sea_water_practical_salinity': [
+        'sea_water_practical_salinity',
+        'sea_surface_salinity',
+    ],
+    'water_surface_height_above_reference_datum': [
         'sea_surface_height_above_geoid',
-    'specific_turbulent_kinetic_energy_of_sea_water':
-        'turbulent_kinetic_energy',
-    'specific_turbulent_kinetic_energy_dissipation_in_sea_water':
+    ],
+    'specific_turbulent_kinetic_energy_dissipation_in_sea_water': [
         'turbulent_kinetic_energy_dissipation',
+    ],
 }
 
 # reverse map: standard_name -> short_name
-map_nemo_sname_to_standard = dict((t[1], t[0]) for
-                                  t in map_nemo_standard_name.items())
+map_nemo_sname_to_standard = dict((r, s) for
+                                  s, l in map_nemo_standard_name.items()
+                                  for r in l)
 
 # declare correct netcdf variable name for cases where standard_name is
 # insufficient to find an unique time series
 nemo_ncvar_name = {
-    'slev': 'SSH_inst',
 }
 
 
@@ -61,6 +67,7 @@ class NearestNeighborFinder():
 
             returns 't', 'u', or 'v'
             """
+            return 't'  # HACK assume always T grid
             desc = ncf.description
             words = desc.split()
             assert words[0] == 'ocean'
@@ -75,7 +82,7 @@ class NearestNeighborFinder():
             if self.data_dim == 3:
                 # NOTE does not take time-dependent wetting-drying into account
                 e = ncf['e3t'][0, :, :, :]
-                self.landmask = numpy.all(e.mask, axis=0).T
+                self.landmask = numpy.all(e.mask, axis=0)
                 # 1D array of all wet points in raveled index
                 self.wetmask = numpy.nonzero(~self.landmask.ravel())[0]
                 # get coordinates
@@ -84,15 +91,15 @@ class NearestNeighborFinder():
                 depth = ncf['deptht'][:]
                 self.z = -depth
                 # 1D arrays of all wet points
-                self.valid_lon = self.lon.T.ravel()[self.wetmask]
-                self.valid_lat = self.lat.T.ravel()[self.wetmask]
+                self.valid_lon = self.lon.ravel()[self.wetmask]
+                self.valid_lat = self.lat.ravel()[self.wetmask]
             else:
                 # read a field to get landmask
                 for v in ncf.variables:
                     var = ncf[v]
                     if len(var.shape) == 3:
                         # 2D time dependent field
-                        self.landmask = numpy.all(var[:].mask, axis=0).T
+                        self.landmask = numpy.all(var[:].mask, axis=0)
                         break
                 self.wetmask = numpy.nonzero(~self.landmask.ravel())[0]
                 # get coordinates
@@ -100,8 +107,8 @@ class NearestNeighborFinder():
                 self.lat = ncf['nav_lat'][:]
                 self.z = 0.0
                 # 1D arrays of all wet points
-                self.valid_lon = self.lon.T.ravel()[self.wetmask]
-                self.valid_lat = self.lat.T.ravel()[self.wetmask]
+                self.valid_lon = self.lon.ravel()[self.wetmask]
+                self.valid_lat = self.lat.ravel()[self.wetmask]
 
         assert len(self.valid_lat) > 0, \
             'No valid points found in {:}'.format(self.filename)
@@ -209,9 +216,21 @@ class NemoStationFileReader(NemoFileReader):
     def get_station_metadata(self):
         return self.station_metadata
 
-    def get_dataset(self, variable, var_name=None):
+    def get_dataset(self, variable, var_name=None, callback_func=None):
         """
-        Reads all files to cubes and concatenates them in time
+        Reads all files to cubes and concatenates them in time.
+
+        Returns all cubes in a dictionary, or executes callback_func on each
+        cube.
+
+        :arg variable: Variable name to read from netcdf fiels. Typically
+            standard_name attribute.
+        :kwarg var_name: Name of the field array in netcdf files (optional).
+            Can be used to read the correct field in cases where multiple
+            fields have the same standard name.
+        :kwarg callback_func: User-defined function which will be executed for
+            each cube. In this case cubes are not kept in memory; function
+            returns None.
         """
         dataset = {}
         for key in self.station_metadata.keys():
@@ -223,6 +242,7 @@ class NemoStationFileReader(NemoFileReader):
                 if self.verbose:
                     print('Loading {:}'.format(f))
                 kw = {}
+                kw['read_with_netcdf'] = True  # make reading faster
                 if var_name is not None:
                     kw['var_name'] = var_name
                 try:
@@ -249,10 +269,43 @@ class NemoStationFileReader(NemoFileReader):
             try:
                 utility.assert_cube_metadata(cube)
                 utility.assert_cube_valid_data(cube)
-                dataset[key] = cube
-            except AssertionError as e:
+                self.fix_depth_dimension(cube)
+                if callback_func is not None:
+                    callback_func(cube)
+                else:
+                    dataset[key] = cube
+            except AssertionError:
                 pass
-        return dataset
+        if callback_func is None:
+            return dataset
+
+    def dump_dataset(self, variable, var_name=None):
+        """
+        Read files to cubes, concatenates them in time, and stores to disk.
+
+        Does not keep any cubes in memory.
+        """
+        self.get_dataset(variable, var_name=var_name,
+                         callback_func=utility.save_cube)
+
+    def fix_depth_dimension(self, cube):
+        """
+        Fixes depth dimension of the station data inplace
+        """
+        coords = [c.name() for c in cube.coords()]
+        if 'depth' not in coords:
+            # assume surface time series => depth = 0.0
+            dep_dim = iris.coords.DimCoord(
+                0.0, standard_name='depth', units='m')
+            cube.add_aux_coord(dep_dim, None)
+        else:
+            # remove masked depth points
+            i_time = cube.coord_dims('time')[0]
+            i_depth = cube.coord_dims('depth')[0]
+            good_depths = numpy.isfinite(cube.data).any(axis=i_time)
+            select = [slice(None, None, None)] * len(cube.shape)
+            select[i_depth] = good_depths
+            cube = cube[tuple(select)]
 
 
 class TimeSeriesExtractor():
@@ -339,9 +392,9 @@ class TimeSeriesExtractor():
                 assert ncvar is not None, \
                     'Variable {:} not found in {:}'.format(var, filename)
                 if self.nn_finder.data_dim == 3 and len(ncvar.shape) == 4:
-                    values = ncvar[:, k, j, i]
+                    values = ncvar[:, k, i, j]
                 else:
-                    values = ncvar[:, j, i]
+                    values = ncvar[:, i, j]
                 units = ncvar.units
                 long_name = ncvar.long_name
                 timevar = f['time_centered']
@@ -400,7 +453,7 @@ def remove_null_indices(in_cube, fill_value=None):
         all_but_this = tuple(filter(lambda x: x != i, dimensions))
         # all_but_this list every axis, exept dimension
         # used to flatten all the listed axis.
-        masks = [slice(None)]*len(dimension_lens)
+        masks = [slice(None)] * len(dimension_lens)
         # mask marks now all dimensions equvalent to [:,:,:,:]
         axis_mask = ~numpy.max(cube.data, axis=all_but_this).mask
         masks[i] = axis_mask
@@ -411,6 +464,33 @@ def remove_null_indices(in_cube, fill_value=None):
     if fill_value is not None:
         cube.data.mask[cube.data.data == fill_value] = True
     return cube
+
+
+def fix_cube_time_coordinate(cube):
+    """
+    Fixes calendar used in Nemo (leap/noleap) to 'gregorian'.
+
+    The default calendar does not work for most time operations in iris.
+    Time coordinate is fixed in-place.
+    """
+    # convert time coordinate
+    time_coord = cube.coords()[0]
+    time_units = time_coord.units
+    time_array = numpy.array(time_coord.points)
+    start_date = time_units.num2date(time_array[0])
+
+    new_time_units = cf_units.Unit(
+        'seconds since 1970-01-01 00:00:00-00',
+        calendar='gregorian')
+
+    offset = new_time_units.date2num(start_date) - time_array[0]
+    time_array += offset
+    time_dim = iris.coords.DimCoord(time_array,
+                                    standard_name='time',
+                                    units=new_time_units)
+    time_ix = cube.coord_dims('time')
+    cube.remove_coord(time_coord)
+    cube.add_dim_coord(time_dim, time_ix)
 
 
 def fix_cube_coordinates(cube):
@@ -442,6 +522,7 @@ def fix_cube_coordinates(cube):
         dim_coord = iris.coords.DimCoord(array, standard_name=name,
                                          units='degrees')
         return dim_coord
+
     # FIXME get the coord indices from the metadata
     lat_len, lon_len = cube.coord('latitude').shape
     lon_coord = _make_dim_coord('longitude', lon_len)
@@ -479,28 +560,12 @@ def fix_cube_coordinates(cube):
         cube.remove_coord(c.long_name)
         cube.add_dim_coord(z_coord, z_dim_index)
 
-    # convert time coordinate
-    time_coord = cube.coords()[0]
-    time_units = time_coord.units
-    time_array = numpy.array(time_coord.points)
-    start_date = time_units.num2date(time_array[0])
-
-    new_time_units = cf_units.Unit(
-        'seconds since 1970-01-01 00:00:00-00',
-        calendar='gregorian')
-
-    offset = new_time_units.date2num(start_date) - time_array[0]
-    time_array += offset
-    time_dim = iris.coords.DimCoord(time_array,
-                                    standard_name='time',
-                                    units=new_time_units)
-    time_ix = cube.coord_dims('time')
-    cube.remove_coord(time_coord)
-    cube.add_dim_coord(time_dim, time_ix)
+    fix_cube_time_coordinate(cube)
 
 
 def load_nemo_output(ncfile, standard_name, var_name=None,
-                     force_real_data=False, **kwargs):
+                     force_real_data=False,
+                     read_with_netcdf=False, **kwargs):
     """
     Load a field identified with standard_name from NEMO output file.
 
@@ -520,6 +585,24 @@ def load_nemo_output(ncfile, standard_name, var_name=None,
     assert len(cube_list) == 1, 'Multiple fields found'
     cube = cube_list[0]
     fix_cube_coordinates(cube)
+
+    if read_with_netcdf:
+        # NOTE read data array with netCDF4 library
+        # workaround to avoid slow iris reading, one time slice at a time
+        found_var = None
+        with netCDF4.Dataset(ncfile) as ncds:
+            for vname, v in ncds.variables.items():
+                sname_match = (hasattr(v, 'standard_name') and
+                               v.standard_name == standard_name)
+                vname_match = vname == var_name
+                if (sname_match or vname_match):
+                    found_var = v
+                    break
+            assert found_var is not None, \
+                'Could not find var {:}/{:} in {:}'. \
+                format(standard_name, var_name, ncfile)
+            cube.data = found_var[:]
+
     if force_real_data:
         # read data to memory
         cube.data
@@ -544,26 +627,7 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
                                     verbose=True)
     for var in var_list:
         sname = utility.map_var_standard_name[var]
-        nemo_var = map_nemo_standard_name.get(sname, sname)
-        var_name = nemo_ncvar_name.get(var)
-        dataset = nreader.get_dataset(nemo_var, var_name=var_name)
-
-        for key in dataset:
-            cube = dataset[key]
-
-            coords = [c.name() for c in cube.coords()]
-            if 'depth' not in coords:
-                # assume already at correct depth
-                dep_dim = iris.coords.DimCoord(0.0,
-                                               standard_name='depth',
-                                               units='m')
-                cube.add_aux_coord(dep_dim, None)
-            else:
-                # remove masked depth points
-                i_time = cube.coord_dims('time')[0]
-                i_depth = cube.coord_dims('depth')[0]
-                good_depths = numpy.isfinite(cube.data).any(axis=i_time)
-                select = [slice(None, None, None)] * len(cube.shape)
-                select[i_depth] = good_depths
-                cube = cube[tuple(select)]
-            utility.save_cube(cube)
+        nemo_var_list = map_nemo_standard_name.get(sname, sname)
+        for nemo_var in nemo_var_list:
+            var_name = nemo_ncvar_name.get(var)
+            nreader.dump_dataset(nemo_var, var_name=var_name)

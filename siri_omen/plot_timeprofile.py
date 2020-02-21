@@ -12,7 +12,7 @@ __all__ = [
     'plot_timeprofile',
     'make_timeprofile_plot',
     'save_timeprofile_figure',
-    ]
+]
 
 log_scale_vars = [
     'specific_turbulent_kinetic_energy_of_sea_water',
@@ -49,9 +49,10 @@ def get_plot_time(cube):
 def plot_timeprofile(cube, ax, title=None,
                      start_time=None, end_time=None,
                      log_scale=False, symmetric_scale=False,
+                     label_alias=None,
                      cmap=None, vmin=None, vmax=None, colorbar=True):
     """
-    Plot sigle cube in given axes.
+    Plot a single cube in the given axes.
     """
     fig = ax.figure
     if start_time is not None or end_time is not None:
@@ -60,6 +61,8 @@ def plot_timeprofile(cube, ax, title=None,
                                             end_time=end_time)
     else:
         _cube = cube
+    _cube = utility.crop_invalid_depths(_cube)
+
     z = -get_grid(_cube, 'depth')
     t = get_plot_time(_cube)
 
@@ -84,6 +87,13 @@ def plot_timeprofile(cube, ax, title=None,
     if _log_scale:
         norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
+    if cube.attributes['dataset_id'][:5] == 'diff:':
+        # this must be a diff field
+        cmap = plt.get_cmap('RdBu_r')
+        val_max = numpy.nanmax(numpy.abs(cube.data))
+        vmin = -val_max
+        vmax = val_max
+
     p = ax.pcolormesh(t, z, _cube.data.T, vmin=vmin, vmax=vmax, cmap=cmap,
                       norm=norm)
     loc = matplotlib.dates.AutoDateLocator()
@@ -96,6 +106,8 @@ def plot_timeprofile(cube, ax, title=None,
     if title is None:
         loc = _cube.attributes['location_name']
         data_id = _cube.attributes['dataset_id']
+        if label_alias is not None:
+            data_id = label_alias.get(data_id, data_id)
         title = ' '.join([loc, data_id])
         ax.set_title(title)
     ax.set_ylabel(ylabel)
@@ -114,20 +126,34 @@ def plot_timeprofile(cube, ax, title=None,
 
 
 def make_timeprofile_plot(cube_list, **kwargs):
-    ncubes = len(cube_list)
+    _cube_list = list(cube_list)
 
+    plot_diff = kwargs.pop('plot_diff', False)
+
+    if plot_diff:
+        # FIXME most hacky
+        diff = _cube_list[1] - _cube_list[0]
+        diff.attributes['location_name'] = _cube_list[0].attributes['location_name']
+        diff.attributes['dataset_id'] = 'diff:{:}-{:}'.format(*[c.attributes['dataset_id'] for c in _cube_list])
+        diff.standard_name = _cube_list[0].standard_name
+        diff.long_name = 'diff:' + _cube_list[0].standard_name
+        diff.units = _cube_list[0].units
+        _cube_list.append(diff)
+
+    ncubes = len(_cube_list)
     plot_height = 3.5
-    fig = plt.figure(figsize=(12, ncubes*plot_height))
-    ax_list = fig.subplots(ncubes, 1, sharex=True, sharey=True)
+    fig = plt.figure(figsize=(12, ncubes * plot_height))
+    sharey = kwargs.pop('share_y_axis', True)
+    ax_list = fig.subplots(ncubes, 1, sharex=True, sharey=sharey)
     if ncubes == 1:
         ax_list = [ax_list]
 
     if 'vmin' not in kwargs or kwargs['vmin'] is None:
-        kwargs['vmin'] = numpy.min([numpy.nanmin(c.data) for c in cube_list])
+        kwargs['vmin'] = numpy.min([numpy.nanmin(c.data) for c in _cube_list])
     if 'vmax' not in kwargs or kwargs['vmax'] is None:
-        kwargs['vmax'] = numpy.max([numpy.nanmax(c.data) for c in cube_list])
+        kwargs['vmax'] = numpy.max([numpy.nanmax(c.data) for c in _cube_list])
 
-    for cube, ax in zip(cube_list, ax_list):
+    for cube, ax in zip(_cube_list, ax_list):
         plot_timeprofile(cube, ax, **kwargs)
 
     return fig
@@ -140,15 +166,17 @@ def save_timeprofile_figure(cube_list, output_dir=None, **kwargs):
     time_extent = kwargs.pop('time_extent', None)
     start_time = kwargs.pop('start_time', None)
     end_time = kwargs.pop('end_time', None)
+    imgfile = kwargs.pop('filename', None)
     if start_time is None and end_time is None and time_extent is not None:
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
     fig = make_timeprofile_plot(cube_list, start_time=start_time,
                                 end_time=end_time, **kwargs)
 
-    imgfile = utility.generate_img_filename(cube_list, root_dir=output_dir,
-                                            start_time=start_time,
-                                            end_time=end_time)
+    if imgfile is None:
+        imgfile = utility.generate_img_filename(cube_list, root_dir=output_dir,
+                                                start_time=start_time,
+                                                end_time=end_time)
     dir, filename = os.path.split(imgfile)
     utility.create_directory(dir)
 
