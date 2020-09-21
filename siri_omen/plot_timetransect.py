@@ -110,6 +110,8 @@ def plot_timetransect(cube, time_index, ax, title=None,
     if _log_scale:
         norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
+    label_alias = kwargs.pop('label_alias', None)
+
     x_along = get_transect_grid(_cube)
     x_along /= 1000.0  # convert to km
     _cube = utility.drop_singleton_dims(_cube)
@@ -131,6 +133,8 @@ def plot_timetransect(cube, time_index, ax, title=None,
     if title is None:
         loc = _cube.attributes['location_name']
         data_id = _cube.attributes['dataset_id']
+        if label_alias is not None:
+            data_id = label_alias.get(data_id, data_id)
         date_str = '{:%Y-%m-%d %H:%M}'.format(date)
         title = ' '.join([loc, data_id, date_str])
         ax.set_title(title)
