@@ -27,6 +27,13 @@ symmetric_vars = [
     'upward_sea_water_velocity',
 ]
 
+var_short_name = {
+    'specific_turbulent_kinetic_energy_of_sea_water': 'tke',
+    'specific_turbulent_kinetic_energy_dissipation_in_sea_water': 'tke dissipation rate',
+    'ocean_vertical_heat_diffusivity': 'eddy diffusivity',
+    'ocean_vertical_momentum_diffusivity': 'eddy viscosity',
+}
+
 
 def get_grid(cube, coordname):
     coord = cube.coord(coordname)
@@ -111,6 +118,7 @@ def plot_timeprofile(cube, ax, title=None,
         title = ' '.join([loc, data_id])
         ax.set_title(title)
     ax.set_ylabel(ylabel)
+    ax.autoscale(enable=True, axis='x', tight=True)
     fig.autofmt_xdate()
     if colorbar:
         # create colorbar
@@ -120,13 +128,20 @@ def plot_timeprofile(cube, ax, title=None,
         x = pos[0] + pos[2] + pad
         cax = fig.add_axes([x, pos[1], width, pos[3]])
         cb = plt.colorbar(p, cax=cax)
-        label = '{:} [{:}]'.format(_cube.name().replace('_', ' ').capitalize(),
-                                   _cube.units)
+        var_name = _cube.name()
+        var_name = var_short_name.get(var_name, var_name)
+        var_name = var_name.replace('_', ' ').capitalize()
+        label = '{:} [{:}]'.format(var_name, _cube.units)
         cb.set_label(label)
 
 
 def make_timeprofile_plot(cube_list, **kwargs):
     _cube_list = list(cube_list)
+
+    if 'vmin' not in kwargs or kwargs['vmin'] is None:
+        kwargs['vmin'] = numpy.min([numpy.nanmin(c.data) for c in _cube_list])
+    if 'vmax' not in kwargs or kwargs['vmax'] is None:
+        kwargs['vmax'] = numpy.max([numpy.nanmax(c.data) for c in _cube_list])
 
     plot_diff = kwargs.pop('plot_diff', False)
 
@@ -134,7 +149,7 @@ def make_timeprofile_plot(cube_list, **kwargs):
         # FIXME most hacky
         diff = _cube_list[1] - _cube_list[0]
         diff.attributes['location_name'] = _cube_list[0].attributes['location_name']
-        diff.attributes['dataset_id'] = 'diff:{:}-{:}'.format(*[c.attributes['dataset_id'] for c in _cube_list])
+        diff.attributes['dataset_id'] = 'diff:{:}-{:}'.format(*[c.attributes['dataset_id'] for c in [_cube_list[1], _cube_list[0]]])
         diff.standard_name = _cube_list[0].standard_name
         diff.long_name = 'diff:' + _cube_list[0].standard_name
         diff.units = _cube_list[0].units
@@ -148,18 +163,13 @@ def make_timeprofile_plot(cube_list, **kwargs):
     if ncubes == 1:
         ax_list = [ax_list]
 
-    if 'vmin' not in kwargs or kwargs['vmin'] is None:
-        kwargs['vmin'] = numpy.min([numpy.nanmin(c.data) for c in _cube_list])
-    if 'vmax' not in kwargs or kwargs['vmax'] is None:
-        kwargs['vmax'] = numpy.max([numpy.nanmax(c.data) for c in _cube_list])
-
     for cube, ax in zip(_cube_list, ax_list):
         plot_timeprofile(cube, ax, **kwargs)
 
     return fig
 
 
-def save_timeprofile_figure(cube_list, output_dir=None, **kwargs):
+def save_timeprofile_figure(cube_list, output_dir=None, plot_root_dir=None, **kwargs):
     """
     Makes a default time profile plot and saves it to disk.
     """
@@ -174,7 +184,9 @@ def save_timeprofile_figure(cube_list, output_dir=None, **kwargs):
                                 end_time=end_time, **kwargs)
 
     if imgfile is None:
-        imgfile = utility.generate_img_filename(cube_list, root_dir=output_dir,
+        imgfile = utility.generate_img_filename(cube_list,
+                                                output_dir=output_dir,
+                                                root_dir=plot_root_dir,
                                                 start_time=start_time,
                                                 end_time=end_time)
     dir, filename = os.path.split(imgfile)
