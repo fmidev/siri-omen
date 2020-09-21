@@ -17,7 +17,7 @@ class GeographicPlot(object):
     """
     def __init__(self, ax=None, fig=None, rect=None, projection=None,
                  extent=[6, 32, 53, 66], symmetric_colorbar=False,
-                 draw_grid=True):
+                 draw_grid=True, grid_zorder=2):
         self.symmetric_colorbar = symmetric_colorbar
         self.val_max_magnitude = 0.0
 
@@ -44,7 +44,7 @@ class GeographicPlot(object):
             ax.set_extent(extent)
 
         if draw_grid:
-            gl = ax.gridlines(draw_labels=True, zorder=2)
+            gl = ax.gridlines(draw_labels=True, zorder=grid_zorder)
             gl.xlabels_top = False
             gl.ylabels_right = False
             gl.xformatter = LONGITUDE_FORMATTER
@@ -139,6 +139,8 @@ class GeographicPlot(object):
         kwargs.setdefault('zorder', 2)
         if kind == 'pcolormesh':
             p = iplt.pcolormesh(cube, axes=self.ax, **kwargs)
+        if kind == 'pcolor':
+            p = iplt.pcolor(cube, axes=self.ax, **kwargs)
         elif kind == 'contourf':
             p = iplt.contourf(cube, axes=self.ax, **kwargs)
         else:
