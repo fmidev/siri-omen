@@ -8,7 +8,12 @@ import numpy
 from collections import OrderedDict
 import datetime
 import pytz
+from scipy import signal
 from . import statistics
+
+
+# period of M2 cycle in seconds
+T_M2 = 44714.0
 
 # standard names for all used variables
 # based on CF standard and oceanSITES short variable names
@@ -444,6 +449,19 @@ def concatenate_cubes(cube_list):
     return cube
 
 
+def merge_cubes(cube_list):
+    """
+    Merge multiple scalar cubes into one.
+
+    Variables must be compatible, e.g. cubes must contain non-overlapping and
+    increasing time stamps.
+    """
+    list = iris.cube.CubeList(cube_list)
+    equalise_attributes(list)
+    cube = list.merge_cube()
+    return cube
+
+
 def compute_cube_statistics(reference, predicted):
 
     predicted_alinged = align_cubes(reference, predicted)
@@ -494,3 +512,32 @@ def cube_volumes(cube):
     # depth axis is real lenght
     volumes = volumes * cell_thickness.reshape(new_shape)
     return volumes
+
+
+def remove_tides(cube, T=T_M2):
+    time_coord = cube.coord('time')
+    time_units = time_coord.units
+    target_units = cf_units.Unit(
+        'seconds since 1970-01-01 00:00:00-00',
+        calendar='gregorian'
+    )
+    time = time_units.convert(time_coord.points, target_units)
+    dt = numpy.diff(time)
+    # assert (dt.max() - dt.min()) < 1e-3, 'Uneven dt is not supported'
+    dt = dt.min()
+    # filter design, low-pass butterworth
+    T0 = (2 * dt)  # period of Nyquist frequency
+    Tpass = 8 * T  # period of pass frequency
+    Gpass = 3.0       # max dB loss in pass band
+    Tstop = 1 * T  # period of stop frequency
+    Gstop = 30.0     # min dB atennuation in stop band
+    o, Wn = signal.buttord(T0 / Tpass, T0 / Tstop, Gpass, Gstop)
+    if o < 0:
+        raise Exception(
+            'Cannot create tidal filter. Data sampling frequency may be too low, dt=' +
+            str(dt))
+    sos = signal.butter(o, Wn, output='sos')
+    data_filtered = signal.sosfiltfilt(sos, cube.data)
+    new_cube = cube.copy()
+    new_cube.data = data_filtered
+    return new_cube
