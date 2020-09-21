@@ -14,6 +14,7 @@ from . import utility
 
 map_nemo_standard_name = {
     'sea_water_temperature': [
+        'Bulk sea surface temperature',
         'sea_water_potential_temperature',
         'sea_surface_temperature',
     ],
@@ -194,7 +195,7 @@ class NemoStationFileReader(NemoFileReader):
                 print('Reading metadata: {:}'.format(f))
             with netCDF4.Dataset(f, 'r') as ncfile:
                 name_attr = ncfile.getncattr('name')
-                location_name = name_attr.replace('station_', '')
+                location_name = name_attr.replace('station_', '').replace('prof_', '')
                 lat = ncfile['nav_lat'][:][0, 0]
                 lon = ncfile['nav_lon'][:][0, 0]
                 key = '{:}-lon{:.2f}-lat{:.2f}'.format(location_name, lon, lat)
@@ -545,17 +546,24 @@ def fix_cube_coordinates(cube):
         cube.coord('longitude').guess_bounds()
 
     # fix vertical coordinate
-    has_z_coords = 'deptht' in [c.var_name for c in cube.coords()]
-    if has_z_coords:
-        c = cube.coord('Vertical T levels')
-        dep_array = c.points
-        z_coord = iris.coords.DimCoord(dep_array,
-                                       standard_name='depth',
-                                       units='m')
-        z_dim_index = cube.coord_dims(c.long_name)[0]
-        z_coord.guess_bounds()
-        cube.remove_coord(c.long_name)
-        cube.add_dim_coord(z_coord, z_dim_index)
+    coord_name_list = [
+        ('deptht', 'Vertical T levels'),
+        ('depthw', 'Vertical W levels'),
+        ('depthu', 'Vertical U levels'),
+        ('depthv', 'Vertical V levels'),
+    ]
+    for zname, zlongname in coord_name_list:
+        has_z_coords = zname in [c.var_name for c in cube.coords()]
+        if has_z_coords:
+            c = cube.coord(zlongname)
+            dep_array = c.points
+            z_coord = iris.coords.DimCoord(dep_array,
+                                           standard_name='depth',
+                                           units='m')
+            z_dim_index = cube.coord_dims(c.long_name)[0]
+            z_coord.guess_bounds()
+            cube.remove_coord(c.long_name)
+            cube.add_dim_coord(z_coord, z_dim_index)
 
     fix_cube_time_coordinate(cube)
 
@@ -591,8 +599,10 @@ def load_nemo_output(ncfile, standard_name, var_name=None,
             for vname, v in ncds.variables.items():
                 sname_match = (hasattr(v, 'standard_name') and
                                v.standard_name == standard_name)
+                lname_match = (hasattr(v, 'long_name') and
+                               v.long_name == standard_name)
                 vname_match = vname == var_name
-                if (sname_match or vname_match):
+                if (sname_match or lname_match or vname_match):
                     found_var = v
                     break
             assert found_var is not None, \
@@ -624,7 +634,7 @@ def concatenate_nemo_station_data(search_pattern, dataset_id, var_list):
                                     verbose=True)
     for var in var_list:
         sname = utility.map_var_standard_name[var]
-        nemo_var_list = map_nemo_standard_name.get(sname, sname)
+        nemo_var_list = map_nemo_standard_name.get(sname, [sname])
         for nemo_var in nemo_var_list:
             var_name = nemo_ncvar_name.get(var)
             nreader.dump_dataset(nemo_var, var_name=var_name)
