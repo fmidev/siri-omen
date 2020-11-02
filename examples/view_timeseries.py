@@ -3,12 +3,14 @@ View netCDF time series in an interactive timeseries plot with bokeh.
 
 Plot opens in a browser window.
 """
+from bokeh.models import ColumnDataSource
 from bokeh.plotting import figure, show, output_file
 from bokeh.palettes import Category10 as palette
 import itertools
 import numpy
 import argparse
 from siri_omen import *
+import cftime
 
 color_cycle = itertools.cycle(palette[10])
 
@@ -21,11 +23,17 @@ def make_interactive_plot(cube_list):
         time_coord = cube.coord('time')
         time_units = time_coord.units
         time_array = numpy.array(time_coord.points)
+        # get cftime calendar-aware datetime
         datetime_list = time_units.num2date(time_array)
+        # convert to python datetime
+        datetime_list = [
+            datetime.datetime(d.year, d.month, d.day, d.hour, d.second) for d
+            in datetime_list
+        ]
         values = cube.data.flatten()
 
         legend = cube.attributes['dataset_id']
-        p.line(datetime_list, values, legend=legend, color=next(color_cycle))
+        p.line(datetime_list, values, legend_label=legend, color=next(color_cycle))
 
     ylabel = '{:} [{:}]'.format(cube.standard_name.replace('_', ' '),
                                 cube.units)
@@ -61,8 +69,13 @@ def parse_args():
     )
     parser.add_argument('files', metavar='file', nargs='+',
                         help='a netCDF file to open, multiple values accepted')
+    parser.add_argument('--remove-mean', action='store_true',
+                        help='remove mean from time series prior to plotting')
     args = parser.parse_args()
     cube_list = load_cubes(args.files)
+    if args.remove_mean:
+        for c in cube_list:
+            c.data -= c.data.mean()
     make_interactive_plot(cube_list)
 
 
