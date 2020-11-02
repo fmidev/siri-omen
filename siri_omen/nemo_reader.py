@@ -10,6 +10,7 @@ import iris
 import netCDF4
 import glob
 import collections
+from collections.abc import Iterable
 from . import utility
 
 map_nemo_standard_name = {
@@ -372,7 +373,10 @@ class TimeSeriesExtractor():
         if use_source_coordinates:
             out_lat = self.nn_finder.lat[i, j]
             out_lon = self.nn_finder.lon[i, j]
-            out_z = self.nn_finder.z[k]
+            if isinstance(self.nn_finder.z, Iterable):
+                out_z = self.nn_finder.z[k]
+            else:
+                out_z = self.nn_finder.z
         else:
             out_lon = lon
             out_lat = lat
