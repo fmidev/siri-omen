@@ -271,7 +271,7 @@ class NemoStationFileReader(NemoFileReader):
             try:
                 utility.assert_cube_metadata(cube)
                 utility.assert_cube_valid_data(cube)
-                self.fix_depth_dimension(cube)
+                cube = self.fix_depth_dimension(cube)
                 if callback_func is not None:
                     callback_func(cube)
                 else:
@@ -308,6 +308,7 @@ class NemoStationFileReader(NemoFileReader):
             select = [slice(None, None, None)] * len(cube.shape)
             select[i_depth] = good_depths
             cube = cube[tuple(select)]
+        return cube
 
 
 class TimeSeriesExtractor():
