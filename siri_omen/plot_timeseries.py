@@ -127,7 +127,7 @@ def make_timeseries_figure(cube_list, **kwargs):
 
 
 def save_timeseries_figure(cube_list, output_dir=None, plot_root_dir=None,
-                           **kwargs):
+                           imgfile=None, **kwargs):
     """
     Makes a default time series plot and saves it to disk.
     """
@@ -135,11 +135,12 @@ def save_timeseries_figure(cube_list, output_dir=None, plot_root_dir=None,
     end_time = kwargs.get('end_time', None)
 
     fig = make_timeseries_figure(cube_list, **kwargs)
-    imgfile = utility.generate_img_filename(cube_list,
-                                            output_dir=output_dir,
-                                            root_dir=plot_root_dir,
-                                            start_time=start_time,
-                                            end_time=end_time)
+    if imgfile is None:
+        imgfile = utility.generate_img_filename(cube_list,
+                                                output_dir=output_dir,
+                                                root_dir=plot_root_dir,
+                                                start_time=start_time,
+                                                end_time=end_time)
     dir, filename = os.path.split(imgfile)
     utility.create_directory(dir)
 
