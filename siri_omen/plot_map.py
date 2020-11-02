@@ -17,7 +17,7 @@ class GeographicPlot(object):
     """
     def __init__(self, ax=None, fig=None, rect=None, projection=None,
                  extent=[6, 32, 53, 66], symmetric_colorbar=False,
-                 draw_grid=True, grid_zorder=2):
+                 draw_grid=True, grid_kwargs={}, grid_zorder=2):
         self.symmetric_colorbar = symmetric_colorbar
         self.val_max_magnitude = 0.0
 
@@ -44,7 +44,8 @@ class GeographicPlot(object):
             ax.set_extent(extent)
 
         if draw_grid:
-            gl = ax.gridlines(draw_labels=True, zorder=grid_zorder)
+            gl = ax.gridlines(draw_labels=True, zorder=grid_zorder,
+                              **grid_kwargs)
             gl.xlabels_top = False
             gl.ylabels_right = False
             gl.xformatter = LONGITUDE_FORMATTER
@@ -139,15 +140,17 @@ class GeographicPlot(object):
         kwargs.setdefault('zorder', 2)
         if kind == 'pcolormesh':
             p = iplt.pcolormesh(cube, axes=self.ax, **kwargs)
-        if kind == 'pcolor':
+        elif kind == 'pcolor':
             p = iplt.pcolor(cube, axes=self.ax, **kwargs)
         elif kind == 'contourf':
             p = iplt.contourf(cube, axes=self.ax, **kwargs)
+        elif kind == 'contour':
+            p = iplt.contour(cube, axes=self.ax, **kwargs)
         else:
             raise RuntimeError('Unknown plot kind: {:}'.format(kind))
         return p
 
-    def add_quiver(self, cube_x, cube_y, transform=None, **kwargs):
+    def add_quiver(self, cube_x, cube_y, c=None, transform=None, **kwargs):
         x = cube_x.coord('longitude').points
         y = cube_x.coord('latitude').points
         u = cube_x.data
@@ -159,8 +162,10 @@ class GeographicPlot(object):
         kwargs.setdefault('pivot', 'tail')
         kwargs.setdefault('headwidth', 4.5)
         kwargs.setdefault('headlength', 6)
-        p = self.ax.quiver(x, y, u, v, transform=transform,
-                           **kwargs)
+        if c is not None:
+            p = self.ax.quiver(x, y, u, v, c, transform=transform, **kwargs)
+        else:
+            p = self.ax.quiver(x, y, u, v, transform=transform, **kwargs)
         return p
 
     def add_feature(self, feature_name, scale='50m', **kwargs):
@@ -184,12 +189,20 @@ class GeographicPlot(object):
         kwargs.setdefault('ncol', ncolumns)
         self.ax.legend(numpoints=1, **kwargs)
 
-    def add_colorbar(self, p, label=None, width=0.02, pad=0.03, cax=None, **kwargs):
+    def add_colorbar(self, p, label=None, location='left', width=0.02, pad=0.03,
+                     cax=None, **kwargs):
         if cax is None:
-            # create colorbar
+            # create new axes for colorbar
+            orientation = 'vertical' if location in [
+                'right', 'left'] else 'horizontal'
+            kwargs.setdefault('orientation', orientation)
             pos = self.ax.get_position().bounds
-            x = pos[0] + pos[2] + pad * pos[2]
-            cax = self.fig.add_axes([x, pos[1], width, pos[3]])
+            if location == 'left':
+                x = pos[0] + pos[2] + pad * pos[2]
+                cax = self.fig.add_axes([x, pos[1], width, pos[3]])
+            elif location == 'bottom':
+                y = pos[1] - pad * pos[3] - width
+                cax = self.fig.add_axes([pos[0], y, pos[2], width])
         cb = plt.colorbar(p, cax=cax, **kwargs)
         if label is not None:
             cb.set_label(label)
