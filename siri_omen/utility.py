@@ -10,7 +10,7 @@ import datetime
 import pytz
 from scipy import signal
 from . import statistics
-
+import matplotlib.pyplot as plt
 
 # period of M2 cycle in seconds
 T_M2 = 44714.0
@@ -541,3 +541,17 @@ def remove_tides(cube, T=T_M2):
     new_cube = cube.copy()
     new_cube.data = data_filtered
     return new_cube
+
+
+def save_figure(imgfile, fig=None, path=None, close=True, **kwargs):
+    if fig is None:
+        fig=plt.gcf()
+    kwargs.setdefault('dpi', 200)
+    kwargs.setdefault('bbox_inches', 'tight')
+    if path is not None:
+        create_directory(path)
+        imgfile = os.path.join(path, imgfile)
+    print('Saving image {:}'.format(imgfile))
+    fig.savefig(imgfile, **kwargs)
+    if close:
+        plt.close(fig)
