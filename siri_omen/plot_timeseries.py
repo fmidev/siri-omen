@@ -20,7 +20,7 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
                     title=None, time_extent=None,
                     label_alias=None,
                     style=None, ylim=None,
-                    legend_kwargs=None,
+                    add_legend=True, legend_kwargs=None,
                     start_time=None, end_time=None, **kwargs):
     """
     Plots time series objects in the given axes.
@@ -59,10 +59,11 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
     ax.set_xlim(start_time, end_time)
-    lkw = {'loc': 'upper left', 'bbox_to_anchor': (1.02, 1.0)}
-    if legend_kwargs is not None:
-        lkw.update(legend_kwargs)
-    plt.legend(**lkw)
+    if add_legend:
+        lkw = {'loc': 'upper left', 'bbox_to_anchor': (1.02, 1.0)}
+        if legend_kwargs is not None:
+            lkw.update(legend_kwargs)
+        ax.legend(**lkw)
     if title is None:
         loc_names = [c.attributes['location_name'] for c in cube_list]
         dep_strs = ['{:.1f} m'.format(
