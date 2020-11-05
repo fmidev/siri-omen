@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import cf_units
 import matplotlib
 import os
+import iris
 from . import utility
 
 __all__ = [
@@ -146,13 +147,41 @@ def make_timeprofile_plot(cube_list, **kwargs):
     plot_diff = kwargs.pop('plot_diff', False)
 
     if plot_diff:
-        # FIXME most hacky
-        diff = _cube_list[1] - _cube_list[0]
-        diff.attributes['location_name'] = _cube_list[0].attributes['location_name']
-        diff.attributes['dataset_id'] = 'diff:{:}-{:}'.format(*[c.attributes['dataset_id'] for c in [_cube_list[1], _cube_list[0]]])
-        diff.standard_name = _cube_list[0].standard_name
-        diff.long_name = 'diff:' + _cube_list[0].standard_name
-        diff.units = _cube_list[0].units
+        # compute difference between first 2 cubes
+        [c.data for c in _cube_list]  # force real data (looks like iris bug)
+        # first cube is the observation
+        a = _cube_list[0].copy()
+        b = _cube_list[1].copy()
+        if not a.is_compatible(b):
+            loc = a.attributes['location_name']
+            a_id = a.attributes['dataset_id']
+            b_id = b.attributes['dataset_id']
+            print(f'diff: {loc} interpolating {b_id} data on {a_id} grid')
+            # interpolate on common grid
+            a.remove_coord('latitude')
+            a.remove_coord('longitude')
+            # second cube is the model
+            b.remove_coord('latitude')
+            b.remove_coord('longitude')
+            # interpolate depth
+            obs_depth = a.coord('depth').points
+            b = b.interpolate([('depth', obs_depth)], iris.analysis.Nearest())
+            # interpolate time
+            b.coord('time').convert_units(a.coord('time').units)
+            obs_time = a.coord('time').points
+            b = b.interpolate([('time', obs_time)], iris.analysis.Linear())
+            # make sure time metadata is exactly the same
+            b.remove_coord('time')
+            b.add_dim_coord(a.coord('time'), 0)
+        diff = b - a
+        assert numpy.abs(diff.data).max() < 1e10, 'Bad values in diff field'
+        location_name = a.attributes['location_name']
+        diff.attributes['location_name'] = location_name
+        id_list = [c.attributes['dataset_id'] for c in [b, a]]
+        diff.attributes['dataset_id'] = 'diff:{:}-{:}'.format(*id_list)
+        diff.standard_name = a.standard_name
+        diff.long_name = 'diff:' + a.standard_name
+        diff.units = a.units
         _cube_list.append(diff)
 
     ncubes = len(_cube_list)
@@ -166,7 +195,7 @@ def make_timeprofile_plot(cube_list, **kwargs):
     for cube, ax in zip(_cube_list, ax_list):
         plot_timeprofile(cube, ax, **kwargs)
 
-    return fig
+    return fig, ax_list
 
 
 def save_timeprofile_figure(cube_list, output_dir=None, plot_root_dir=None, **kwargs):
@@ -180,8 +209,8 @@ def save_timeprofile_figure(cube_list, output_dir=None, plot_root_dir=None, **kw
     if start_time is None and end_time is None and time_extent is not None:
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
-    fig = make_timeprofile_plot(cube_list, start_time=start_time,
-                                end_time=end_time, **kwargs)
+    fig, ax_list = make_timeprofile_plot(
+        cube_list, start_time=start_time, end_time=end_time, **kwargs)
 
     if imgfile is None:
         imgfile = utility.generate_img_filename(cube_list,
