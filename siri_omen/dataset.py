@@ -9,7 +9,7 @@ from . import utility
 
 
 def read_dataset(dataset_id, datatype, variable,
-                 location_name=None,
+                 location_name=None, depth=None,
                  start_time=None, end_time=None, verbose=False):
     """
     Read files using pattern
@@ -18,8 +18,8 @@ def read_dataset(dataset_id, datatype, variable,
 
     dataset_id      obs      : observation
     datatype        timeseries
-    variable        temp     : sea water temperature
     location_name   Marviken :
+    variable        temp     : sea water temperature
     datatype        ts       : time series type
     depth_str       d0.00m   : z=0.00 m
 
@@ -31,21 +31,10 @@ def read_dataset(dataset_id, datatype, variable,
 
     output['Marviken-d0.00m'] = cube
     """
+    file_list = utility.query_netcdf_file(
+        dataset_id, datatype, variable, location_name=location_name,
+        depth=depth, start_time=start_time, end_time=end_time, verbose=verbose)
     d = {}
-    if location_name is None:
-        location_name = '*'
-        print('Reading dataset: {:} {:} {:}'.format(
-            dataset_id, datatype, variable))
-    else:
-        print('Reading dataset: {:} {:} {:} {:}'.format(
-            dataset_id, datatype, variable, location_name))
-    pattern = '{dataset_id:}/{datatype:}/{location_name:}/{var:}/*.nc'.format(
-        dataset_id=dataset_id, datatype=datatype,
-        location_name=location_name, var=variable)
-    if verbose:
-        print('Search pattern: {:}'.format(pattern))
-    file_list = glob.glob(pattern)
-    assert len(file_list) > 0, 'No files found: {:}'.format(pattern)
     for f in sorted(file_list):
         try:
             if verbose:
@@ -54,9 +43,11 @@ def read_dataset(dataset_id, datatype, variable,
             if start_time is not None or end_time is not None:
                 c = utility.constrain_cube_time(c, start_time=start_time,
                                                 end_time=end_time)
-            if datatype in ['timeseries', 'timeprofile']:
+            if datatype in ['timeseries']:
                 dep_str = utility.get_depth_string(c)
                 key = '-'.join((c.attributes['location_name'], dep_str))
+            elif datatype in ['timeprofile']:
+                key = c.attributes['location_name']
             else:
                 start_str = utility.get_cube_datetime(c, 0).strftime('%Y-%m-%d')
                 key = '-'.join((c.attributes['location_name'], start_str))

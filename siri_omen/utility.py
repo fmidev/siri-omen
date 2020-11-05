@@ -8,6 +8,7 @@ import numpy
 from collections import OrderedDict
 import datetime
 import pytz
+import glob
 from scipy import signal
 from . import statistics
 import matplotlib.pyplot as plt
@@ -368,7 +369,53 @@ def generate_img_filename(cube_list, prefix=None, loc_str=None,
     return imgfile
 
 
-def load_cube(input_file, var):
+def query_netcdf_file(dataset_id, datatype, variable, location_name=None,
+                      depth=None, start_time=None, end_time=None,
+                      verbose=False):
+    args = [dataset_id, datatype, variable]
+    file_args = ['*']
+    if location_name is None:
+        location_name = '*'
+    else:
+        args.append(location_name)
+        file_args.append(location_name)
+    if depth is None:
+        depth_str = '*'
+    else:
+        depth_str = 'd{:.2f}m'.format(float(depth))
+        args.append(depth_str)
+        file_args.append(depth_str)
+    print('File query: ' + ' '.join(args))
+    if len(file_args) > 1:
+        file_args.append('*')
+    filepattern = '_'.join(file_args) + '.nc'
+    pattern = f'{dataset_id}/{datatype}/{location_name}/{variable}/{filepattern}'
+    if verbose:
+        print('Search pattern: {:}'.format(pattern))
+    file_list = glob.glob(pattern)
+    assert len(file_list) > 0, 'No files found: {:}'.format(pattern)
+    matching_files = []
+    for f in file_list:
+        try:
+            c = load_cube(f, variable)
+        except Exception as e:
+            print(f'Could not load {variable} in {f}')
+            print(e)
+        st = get_cube_datetime(c, 0)
+        et = get_cube_datetime(c, -1)
+        ok = True
+        if start_time is not None and start_time > et:
+            ok = False
+        if end_time is not None and end_time < st:
+            ok = False
+        if ok:
+            matching_files.append(f)
+    return matching_files
+
+
+def load_cube(input_file=None, variable=None, dataset_id=None, datatype=None,
+              location_name=None, depth=None, start_time=None, end_time=None,
+              verbose=False):
     """
     Load netcdf file to a cube object
 
@@ -376,14 +423,29 @@ def load_cube(input_file, var):
     :arg str var: standard_name of the variable to read. Alternatively can be
         a shortname, e.g. 'temp' or 'psal'
     """
-    # if short name convert to standard_name
-    _var = map_var_standard_name.get(var, var)
+    if input_file is None:
+        assert variable is not None, 'variable is requred if ' \
+            'file name is not specified'
+        assert dataset_id is not None, 'dataset_id is requred if ' \
+            'file name is not specified'
+        assert datatype is not None, 'datatype is requred if ' \
+            'file name is not specified'
+        input_file = query_netcdf_file(
+            dataset_id, datatype, variable, location_name=location_name, depth=depth,
+            start_time=start_time, end_time=start_time, verbose=verbose
+        )
+        if verbose:
+            print(f'Found files {input_file}')
 
-    cube_list = iris.load(input_file, _var)
+    # if short name convert to standard_name
+    variable = map_var_standard_name.get(variable, variable)
+
+    cube_list = iris.load(input_file, variable)
     assert len(cube_list) > 0, 'Field "{:}" not found in {:}'.format(
-        _var, input_file)
+        variable, input_file)
     assert len(cube_list) == 1, 'Multiple files found'
     cube = cube_list[0]
+    cube = constrain_cube_time(cube, start_time, end_time)
     return cube
 
 
