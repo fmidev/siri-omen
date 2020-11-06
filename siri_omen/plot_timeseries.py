@@ -55,10 +55,6 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
         else:
             _c_units = _c
         qplt.plot(_c_units, axes=ax, label=label, **kw)
-    if start_time is None and end_time is None and time_extent is not None:
-        start_time, end_time = utility.get_common_time_overlap(cube_list,
-                                                               time_extent)
-    ax.set_xlim(start_time, end_time)
     if add_legend:
         lkw = {'loc': 'upper left', 'bbox_to_anchor': (1.02, 1.0)}
         if legend_kwargs is not None:
@@ -72,8 +68,6 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
                                  a in zip(loc_names, dep_strs)])
         title = ', '.join(titles).strip()
     ax.set_title(title)
-    if time_lim is not None:
-        ax.set_xlim(time_lim)
 
     xlim = ax.get_xlim()
     range_days = xlim[1] - xlim[0]
@@ -102,6 +96,13 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
     ax.grid(which='major', linewidth=0.7, color='0.7')
     ax.grid(which='minor', linestyle='dashed', linewidth=0.3, color='0.7')
 
+    ax.autoscale(enable=True, axis='x', tight=True)
+    if start_time is None and end_time is None and time_extent is not None:
+        start_time, end_time = utility.get_common_time_overlap(cube_list,
+                                                               time_extent)
+    ax.set_xlim(start_time, end_time)
+    if time_lim is not None:
+        ax.set_xlim(time_lim)
     ax.figure.autofmt_xdate()
 
     if ylim is not None:
