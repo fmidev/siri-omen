@@ -58,11 +58,14 @@ class GeographicPlot(object):
         self.sample_points = []
 
     def add_station(self, x, y, label, label_to_legend=False, textargs=None,
-                    transform=None,
-                    **kwargs):
+                    transform=None, hide_label=False, **kwargs):
         if transform is None:
-            transform = ccrs.Geodetic()
-        if label_to_legend:
+            transform = ccrs.PlateCarree()
+        extent = self.ax.get_extent(transform)
+        if (x < extent[0] or x > extent[1] or y < extent[2] or y > extent[3]):
+            print(f'Station {label} {x},{y} outside the plot, skipping.')
+            return None, None
+        if label_to_legend and not hide_label:
             kwargs.setdefault('label', label)
         else:
             kwargs.pop('label', None)
@@ -70,8 +73,10 @@ class GeographicPlot(object):
         sty = next(self.point_style_iter)
         sty.update(kwargs)
         p = self.ax.plot(x, y, transform=transform, **sty)
-        if label_to_legend:
+        if label_to_legend and not hide_label:
             self.sample_points.append(p)
+            txt = None
+        elif hide_label:
             txt = None
         else:
             if textargs is None:
@@ -85,14 +90,14 @@ class GeographicPlot(object):
 
     def add_text(self, x, y, text, transform=None, **kwargs):
         if transform is None:
-            transform = ccrs.Geodetic()
+            transform = ccrs.PlateCarree()
         txt = self.ax.text(x, y, text, transform=transform, **kwargs)
         return txt
 
     def add_unstructured_mesh(self, x=None, y=None, connectivity=None,
                               tri=None, transform=None, **kwargs):
         if transform is None:
-            transform = ccrs.Geodetic()
+            transform = ccrs.PlateCarree()
         has_xyc = x is not None and y is not None and connectivity is not None
         has_tri = tri is not None
         msg = 'either x, y, connectivity or tri arguments must be provided'
@@ -112,7 +117,7 @@ class GeographicPlot(object):
                                levels=31,
                                **kwargs):
         if transform is None:
-            transform = ccrs.Geodetic()
+            transform = ccrs.PlateCarree()
         has_xyc = x is not None and y is not None and connectivity is not None
         has_tri = tri is not None
         msg = 'either x, y, connectivity or tri arguments must be provided'
