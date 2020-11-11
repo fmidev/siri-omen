@@ -75,9 +75,9 @@ def plot_scatter(
         x = mdates.epoch2num(x_coord.points)
     else:
         x_coord = cube.coord(x_coordinate)
-        x = x_coord.points
+        x = x_coord.points.copy()
     y_coord = cube.coord(y_coordinate)
-    y = y_coord.points
+    y = y_coord.points.copy()
 
     def compute_coord_shift(x_offset):
         coord_name, scalar, offset = x_offset
@@ -102,14 +102,15 @@ def plot_scatter(
     values = cube.data
 
     kw = {}
-    kw.setdefault('alpha', 0.7)
+    kw.setdefault('alpha', 1.0)
     kw.setdefault('edgecolors', 'none')
-    kw.setdefault('s', 12)
+    kw.setdefault('s', 10)
     kw.update(kwargs)
     color = kw.pop('c', None)
     if color is None:
         color = values
-    p = ax.scatter(x, y, c=color, cmap=cmap, vmin=vmin, vmax=vmax, norm=norm)
+    p = ax.scatter(x, y, c=color, cmap=cmap, vmin=vmin, vmax=vmax, norm=norm,
+                   **kw)
 
     def get_time_locator():
         xlim = ax.get_xlim()
@@ -146,17 +147,20 @@ def plot_scatter(
         if label_alias is not None:
             data_id = label_alias.get(data_id, data_id)
         title = ' '.join([loc, data_id])
-        ax.set_title(title)
+    ax.set_title(title)
 
+    # add x label
     if x_coordinate == 'time':
         ax.set_xlabel('Date')
     else:
         x_str = x_coord.standard_name.replace('_', ' ').capitalize()
         xlabel = f'{x_str} [{x_coord.units}]'
         ax.set_xlabel(xlabel)
+    # add y label
     y_str = y_coord.standard_name.replace('_', ' ').capitalize()
     ylabel = f'{y_str} [{y_coord.units}]'
     ax.set_ylabel(ylabel)
+
     if colorbar:
         # create colorbar
         pad = 0.015
