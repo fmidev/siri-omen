@@ -220,7 +220,7 @@ def get_cube_datatype(cube):
     if (ndims == 1 and 'time' in dim_coords and 'depth' in scalar_coords and
             len(aux_coords) == 0):
         datatype = 'timeseries'
-    if (ndims == 1 and 'time' in dim_coords and 'depth' in scalar_coords and
+    elif (ndims == 1 and 'time' in dim_coords and 'depth' in scalar_coords and
             'latitude' in aux_coords and
             'longitude' in aux_coords):
         datatype = 'surfacetrack'
