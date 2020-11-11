@@ -406,11 +406,11 @@ def query_netcdf_file(dataset_id, datatype, variable, location_name=None,
     for f in file_list:
         try:
             c = load_cube(f, variable)
+            st = get_cube_datetime(c, 0)
+            et = get_cube_datetime(c, -1)
         except Exception as e:
             print(f'Could not load {variable} in {f}')
             print(e)
-        st = get_cube_datetime(c, 0)
-        et = get_cube_datetime(c, -1)
         ok = True
         if start_time is not None and start_time > et:
             if verbose:
