@@ -63,6 +63,7 @@ map_short_datatype = {
     'profile': 'prof',
     'timeprofile': 'tprof',
     'timetransect': 'trans',
+    'surfacetrack': 'strack',
 }
 
 epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
@@ -156,7 +157,8 @@ def check_cube_overlap(one, two):
     return overlap
 
 
-def constrain_cube_time(cube, start_time=None, end_time=None):
+def constrain_cube_time(cube, start_time=None, end_time=None,
+                        include_start=True):
     """
     Constrain time axis between start_time and end_time
 
@@ -178,7 +180,9 @@ def constrain_cube_time(cube, start_time=None, end_time=None):
     assert st <= time_coord.points[-1], \
         'No overlapping time period found. start_time after last time stamp: {:} > {:} ({:})'.format(start_time, get_cube_datetime(cube, -1), cube.attributes.get('dataset_id', 'N/A'))
     t = time_coord.points
-    ix = numpy.logical_and(t >= st, t <= et)
+    ix_above = t >= st if include_start else t > st
+    ix_below = t <= et
+    ix = numpy.logical_and(ix_above, ix_below)
     assert numpy.any(ix), \
         'Time extraction failed: {:} {:}'.format(start_time, end_time)
     time_dims = cube.coord_dims('time')
@@ -201,35 +205,37 @@ def get_cube_datatype(cube):
 
     Supported datatypes are:
     point        - ()
-    timeseries   - (time)
+    timeseries   - (time), scalar (depth)
+    surfacetrack - (time), aux (latitude,longitude), scalar (depth)
     profile      - (depth)
     timeprofile  - (time, depth)
     timetransect - (time, depth, index)
     """
-    coords = [c.name() for c in cube.coords()]
-    has_depth = 'depth' in coords
-    has_time = 'time' in coords
+    # gather coordinate names
+    dim_coords = [c.name() for c in cube.dim_coords]
+    aux_coords = [c.name() for c in cube.aux_coords if len(c.points) > 1]
+    scalar_coords = [c.name() for c in cube.aux_coords if len(c.points) == 1]
     ndims = len(cube.shape)
-    if has_depth:
-        ndepth = len(cube.coord('depth').points)
-    if has_time:
-        ntime = len(cube.coord('time').points)
-    depth_dep = has_depth and ndepth > 1
-    time_dep = has_time and ntime > 1
-    if time_dep and (has_depth and ndepth == 1) and ndims == 1:
+
+    if (ndims == 1 and 'time' in dim_coords and 'depth' in scalar_coords and
+            len(aux_coords) == 0):
         datatype = 'timeseries'
-    elif (has_time and ntime == 1) and depth_dep and ndims == 1:
+    if (ndims == 1 and 'time' in dim_coords and 'depth' in scalar_coords and
+            'latitude' in aux_coords and
+            'longitude' in aux_coords):
+        datatype = 'surfacetrack'
+    elif (ndims == 1 and 'depth' in dim_coords and 'time' in scalar_coords and
+            len(aux_coords) == 0):
         datatype = 'profile'
-    elif time_dep and depth_dep and ndims == 2:
-        datatype = 'timeprofile'
-    elif time_dep and depth_dep and ndims == 3:
+    elif (ndims == 2 and 'time' in dim_coords and 'depth' in dim_coords):
+        datatype = 'profile'
+    elif (ndims == 3 and 'time' in dim_coords and 'depth' in dim_coords):
         datatype = 'timetransect'
     else:
         print(cube)
-        print('has time : {:} n={:}'.format(
-            has_time, ntime if has_time else None))
-        print('has depth: {:} n={:}'.format(
-            has_depth, ndepth if has_depth else None))
+        print(f'dim coords {dim_coords}')
+        print(f'aux coords {aux_coords}')
+        print(f'scalar coords {scalar_coords}')
         raise NotImplementedError('Unknown cube data type')
     return datatype
 
@@ -393,6 +399,8 @@ def query_netcdf_file(dataset_id, datatype, variable, location_name=None,
     if verbose:
         print('Search pattern: {:}'.format(pattern))
     file_list = glob.glob(pattern)
+    if verbose:
+        print('Provisional files: {:}'.format(file_list))
     assert len(file_list) > 0, 'No files found: {:}'.format(pattern)
     matching_files = []
     for f in file_list:
@@ -405,8 +413,12 @@ def query_netcdf_file(dataset_id, datatype, variable, location_name=None,
         et = get_cube_datetime(c, -1)
         ok = True
         if start_time is not None and start_time > et:
+            if verbose:
+                m = f'Data end time too early, skipping: {start_time} > {et}'
             ok = False
         if end_time is not None and end_time < st:
+            if verbose:
+                m = f'Data start time too late, skipping: {end_time} < {st}'
             ok = False
         if ok:
             matching_files.append(f)
@@ -432,7 +444,7 @@ def load_cube(input_file=None, variable=None, dataset_id=None, datatype=None,
             'file name is not specified'
         input_file = query_netcdf_file(
             dataset_id, datatype, variable, location_name=location_name, depth=depth,
-            start_time=start_time, end_time=start_time, verbose=verbose
+            start_time=start_time, end_time=end_time, verbose=verbose
         )
         if verbose:
             print(f'Found files {input_file}')
@@ -521,6 +533,19 @@ def merge_cubes(cube_list):
     list = iris.cube.CubeList(cube_list)
     equalise_attributes(list)
     cube = list.merge_cube()
+    return cube
+
+
+def concatenate_cubes(cube_list):
+    """
+    Concatenate multiple scalar cubes into one.
+
+    Variables must be compatible, e.g. cubes must contain non-overlapping and
+    increasing time stamps.
+    """
+    list = iris.cube.CubeList(cube_list)
+    equalise_attributes(list)
+    cube = list.concatenate_cube()
     return cube
 
 
