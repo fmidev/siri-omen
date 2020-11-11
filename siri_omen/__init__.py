@@ -19,6 +19,7 @@ from .plot_target_diag import *  # NOQA
 from .plot_map import *  # NOQA
 from .plot_timeprofile import *  # NOQA
 from .plot_timetransect import *  # NOQA
+from .plot_scatter import *  # NOQA
 
 from . import nemo_reader  # NOQA
 from . import cmems_reader  # NOQA
