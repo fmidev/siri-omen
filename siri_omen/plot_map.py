@@ -46,8 +46,8 @@ class GeographicPlot(object):
         if draw_grid:
             gl = ax.gridlines(draw_labels=True, zorder=grid_zorder,
                               **grid_kwargs)
-            gl.xlabels_top = False
-            gl.ylabels_right = False
+            gl.top_labels = False
+            gl.right_labels = False
             gl.xformatter = LONGITUDE_FORMATTER
             gl.yformatter = LATITUDE_FORMATTER
             self.gl = gl
@@ -176,8 +176,11 @@ class GeographicPlot(object):
     def add_feature(self, feature_name, scale='50m', **kwargs):
         kwargs.setdefault('zorder', 1)
         if feature_name == 'land':
+            facecolor = kwargs.pop('facecolor', '0.8')
+            edgecolor = kwargs.pop('edgecolor', 'none')
             land_feature = cfeature.NaturalEarthFeature(
-                'physical', 'land', scale, edgecolor='none', facecolor='0.8')
+                'physical', 'land', scale,
+                edgecolor=edgecolor, facecolor=facecolor)
             self.ax.add_feature(land_feature, **kwargs)
         elif feature_name == 'coastlines':
             self.ax.coastlines(resolution='50m', **kwargs)
