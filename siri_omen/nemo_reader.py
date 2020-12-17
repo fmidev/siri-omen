@@ -257,7 +257,6 @@ class NemoStationFileReader(NemoFileReader):
                 print('Reading failed: {:}'.format(key))
                 continue
             cube = utility.concatenate_cubes(cube_list)
-            cube_list.concatenate_cube()
             cube.attributes['dataset_id'] = self.dataset_id
             cube.attributes.pop('name', None)
             cube.attributes['location_name'] = meta['location_name']
@@ -268,10 +267,13 @@ class NemoStationFileReader(NemoFileReader):
             assert sname is not None
             cube.standard_name = map_nemo_sname_to_standard.get(sname, sname)
             cube = utility.drop_singleton_dims(cube)
+            valid = numpy.abs(cube.data) < 1e10
+            cube.data.mask = ~valid
             try:
                 utility.assert_cube_metadata(cube)
                 utility.assert_cube_valid_data(cube)
                 cube = self.fix_depth_dimension(cube)
+                cube = utility.crop_invalid_depths(cube)
                 if callback_func is not None:
                     callback_func(cube)
                 else:
