@@ -142,7 +142,7 @@ def _plot_target(cube_pairs, normalized,
                  fig=None, rect=None, add_legend=True,
                  datalim=None,
                  label_attr='dataset_id', title=None,
-                 label_alias=None,
+                 label_alias=None, style=None,
                  styler_args=None, legend_args=None):
 
     if fig is None:
@@ -170,6 +170,10 @@ def _plot_target(cube_pairs, normalized,
         kw = {}
         if styler_args is not None:
             kw.update(styler.get_style(m))
+        if style is not None:
+            key = m.attributes.get(label_attr)
+            if key is not None and key in style:
+                kw.update(style[key])
         dia.add_sample(m_stats['crmse'], m_stats['bias'],
                        label=label, **kw)
 

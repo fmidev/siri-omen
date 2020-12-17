@@ -266,7 +266,7 @@ def _plot_taylor(cube_pairs, ref_stddev, normalized,
                  pair_stats=None,
                  fig=None, rect=None, add_legend=True,
                  label_attr='dataset_id', ref_label=None, title=None,
-                 label_alias=None,
+                 label_alias=None, style=None,
                  styler_args=None, legend_args=None):
 
     if fig is None:
@@ -303,6 +303,10 @@ def _plot_taylor(cube_pairs, ref_stddev, normalized,
         kw['zorder'] = 2 + float(i)/10.
         if styler_args is not None:
             kw.update(styler.get_style(m))
+        if style is not None:
+            key = m.attributes.get(label_attr)
+            if key is not None and key in style:
+                kw.update(style[key])
         dia.add_sample(m_stats['stddev'], m_stats['corrcoef'],
                        label=label, **kw)
     if add_legend:
