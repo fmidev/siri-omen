@@ -40,6 +40,11 @@ def compute_corrcoef(reference, predicted):
     return numpy.corrcoef(predicted, reference)[0, 1]
 
 
+def compute_mean_abs_error(reference, predicted):
+    err = compute_error(reference, predicted)
+    return numpy.mean(numpy.abs(err))
+
+
 def compute_stat(kind, reference, predicted):
     op = {
         'bias': compute_bias,
@@ -47,6 +52,7 @@ def compute_stat(kind, reference, predicted):
         'crmse': compute_crmse,
         'stddev': compute_stddev,
         'corrcoef': compute_corrcoef,
+        'mae': compute_mean_abs_error,
     }
     args = (reference, predicted)
     if kind == 'stddev':
@@ -55,11 +61,12 @@ def compute_stat(kind, reference, predicted):
 
 
 def _compute_all_stats(reference, predicted):
-    op_list = ['bias', 'rmse', 'crmse', 'stddev', 'corrcoef']
+    op_list = ['bias', 'rmse', 'crmse', 'stddev', 'corrcoef', 'mae']
     return dict([(o, compute_stat(o, reference, predicted)) for o in op_list])
 
 
-def compute_statistics(reference, predicted):
+def compute_statistics(reference, predicted,
+                       add_normalized=False, add_crmse_sign=False):
 
     r = numpy.copy(reference)
     p = numpy.copy(predicted)
@@ -72,12 +79,20 @@ def compute_statistics(reference, predicted):
     ref_stats = _compute_all_stats(r, r)
     pre_stats = _compute_all_stats(r, p)
 
+    if add_normalized:
+        # Add normalized metrics in the same dict as "norm_<metric>"
+        r, p = normalize_statistics(ref_stats, pre_stats,
+                                    add_crmse_sign=add_crmse_sign)
+        for k in r:
+            ref_stats['norm_' + k] = r[k]
+            pre_stats['norm_' + k] = p[k]
+
     return ref_stats, pre_stats
 
 
 def normalize_statistics(ref_stats, pre_stats, add_crmse_sign=False):
 
-    norm_metrics = ['bias', 'rmse', 'crmse', 'stddev']
+    norm_metrics = ['bias', 'rmse', 'crmse', 'stddev', 'mae']
 
     def _make_norm_dict(d, scalar):
         new = dict(d)
