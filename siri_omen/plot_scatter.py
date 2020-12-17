@@ -67,6 +67,16 @@ def plot_scatter(
         vmin = -val_max
         vmax = val_max
 
+    cmap_over = cube.data.max() > vmax
+    cmap_under = cube.data.min() < vmin
+    choose_cbar_extend = {
+        (False, False): 'neither',
+        (True, False): 'min',
+        (False, True): 'max',
+        (True, True): 'both',
+    }
+    cbar_extend = choose_cbar_extend[(cmap_under, cmap_over)]
+
     label_alias = kwargs.pop('label_alias', None)
 
     if x_coordinate == 'time':
@@ -139,7 +149,9 @@ def plot_scatter(
         ax.xaxis.set_major_locator(major_locator)
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
         ax.xaxis.set_minor_locator(minor_locator)
-        ax.xaxis.set_tick_params(rotation=30, labelsize=10)
+        ax.xaxis.set_tick_params(which='major', length=7)
+        plt.setp(ax.get_xticklabels(),
+                 rotation=45, ha='right', rotation_mode='anchor')
 
     if title is None:
         loc = cube.attributes['location_name']
@@ -166,13 +178,24 @@ def plot_scatter(
         pad = 0.015
         width = 0.02
         pos = ax.get_position().bounds
-        x = pos[0] + pos[2] + pad
-        cax = fig.add_axes([x, pos[1], width, pos[3]])
-        cb = plt.colorbar(p, cax=cax)
+        cbax_x = pos[0] + pos[2] + pad
+        cax = fig.add_axes([cbax_x, pos[1], width, pos[3]])
+        cb_kw = {}
+        cb_kw.setdefault('extend', cbar_extend)
+        cb = plt.colorbar(p, cax=cax, **cb_kw)
         label = '{:} [{:}]'.format(cube.name().replace('_', ' ').capitalize(),
                                    cube.units)
         cb.set_label(label)
 
+    def tight_axes(x, pad_fraction, set_func):
+        xrange = [x.min(), x.max()]
+        xpad = (xrange[1] - xrange[0]) * pad_fraction
+        set_func([xrange[0] - xpad, xrange[1] + xpad])
+
+    # tight x/ylim
+    axlim_pad = 0.01
+    tight_axes(x, axlim_pad, ax.set_xlim)
+    tight_axes(y, axlim_pad, ax.set_ylim)
     return p
 
 
@@ -230,12 +253,12 @@ def save_scatter_figure(cube_list, *args,
     time_extent = kwargs.pop('time_extent', None)
     start_time = kwargs.pop('start_time', None)
     end_time = kwargs.pop('end_time', None)
-    imgfile = kwargs.pop('filename', None)
+    imgfile = kwargs.pop('imgfile', None)
     if start_time is None and end_time is None and time_extent is not None:
         start_time, end_time = utility.get_common_time_overlap(cube_list,
                                                                time_extent)
     fig, ax_list = make_scatter_plot(
-        cube_list, *args, start_time=start_time, end_time=end_time, **kwargs)
+        cube_list, *args, **kwargs)
 
     if imgfile is None:
         imgfile = utility.generate_img_filename(cube_list,
@@ -244,7 +267,8 @@ def save_scatter_figure(cube_list, *args,
                                                 start_time=start_time,
                                                 end_time=end_time)
     dir, filename = os.path.split(imgfile)
-    utility.create_directory(dir)
+    if dir != '':
+        utility.create_directory(dir)
 
     print('Saving image {:}'.format(imgfile))
     fig.savefig(imgfile, dpi=200, bbox_inches='tight')
