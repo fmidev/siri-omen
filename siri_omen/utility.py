@@ -471,7 +471,7 @@ def save_cube(cube, root_dir=None, fname=None):
     iris.save(cube, fname)
 
 
-def align_cubes(first, second):
+def align_cubes(first, second, scheme=None):
     """
     Interpolate cubes on the same grid.
 
@@ -484,18 +484,27 @@ def align_cubes(first, second):
     assert len(o.data.shape) == 1, 'only 1D cubes are supported'
     assert len(m.data.shape) == 1, 'only 1D cubes are supported'
 
-    # find non-scalar coordinate
-    coords = [c.name() for c in o.coords() if len(c.points) > 1]
-    assert len(coords) > 0, 'data must contain more than one point'
-    coord_name = coords[0]
+    # convert model units to obs units
+    for c in o.coords():
+        cname = c.name()
+        o_coord = o.coord(cname)
+        m_coord = m.coord(cname)
+        m_coord.convert_units(o_coord.units)
 
-    # convert model time to obs time
-    m_time_coord = m.coord(coord_name)
-    o_time_coord = o.coord(coord_name)
-    m_time_coord.convert_units(o_time_coord.units)
+    # find coordinate to interpolate
+    coord_name = None
+    for c in o.coords():
+        a = c.points
+        b = m.coord(c.name()).points
+        if (a.shape != b.shape or not numpy.allclose(a, b)):
+            coord_name = c.name()
+            break
+    assert coord_name is not None, 'Could not detect interpolation dimension.'
 
-    scheme = iris.analysis.Linear(extrapolation_mode='mask')
-    m2 = m.interpolate([(coord_name, o_time_coord.points)], scheme)
+    if scheme is None:
+        scheme = iris.analysis.Linear(extrapolation_mode='mask')
+    o_points = o.coord(coord_name).points
+    m2 = m.interpolate([(coord_name, o_points)], scheme)
 
     return m2
 
@@ -533,19 +542,6 @@ def merge_cubes(cube_list):
     list = iris.cube.CubeList(cube_list)
     equalise_attributes(list)
     cube = list.merge_cube()
-    return cube
-
-
-def concatenate_cubes(cube_list):
-    """
-    Concatenate multiple scalar cubes into one.
-
-    Variables must be compatible, e.g. cubes must contain non-overlapping and
-    increasing time stamps.
-    """
-    list = iris.cube.CubeList(cube_list)
-    equalise_attributes(list)
-    cube = list.concatenate_cube()
     return cube
 
 
