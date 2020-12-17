@@ -228,7 +228,7 @@ def get_cube_datatype(cube):
             len(aux_coords) == 0):
         datatype = 'profile'
     elif (ndims == 2 and 'time' in dim_coords and 'depth' in dim_coords):
-        datatype = 'profile'
+        datatype = 'timeprofile'
     elif (ndims == 3 and 'time' in dim_coords and 'depth' in dim_coords):
         datatype = 'timetransect'
     else:
