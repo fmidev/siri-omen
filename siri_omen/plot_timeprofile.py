@@ -8,6 +8,7 @@ import matplotlib
 import os
 import iris
 from . import utility
+import matplotlib.dates as mdates
 
 __all__ = [
     'plot_timeprofile',
@@ -104,10 +105,47 @@ def plot_timeprofile(cube, ax, title=None,
 
     p = ax.pcolormesh(t, z, _cube.data.T, vmin=vmin, vmax=vmax, cmap=cmap,
                       norm=norm)
-    loc = matplotlib.dates.AutoDateLocator()
-    fmt = matplotlib.dates.AutoDateFormatter(loc)
-    ax.xaxis.set_major_locator(loc)
-    ax.xaxis.set_major_formatter(fmt)
+
+    xlim = ax.get_xlim()
+    range_days = xlim[1] - xlim[0]
+
+    if range_days < 15:
+        major_locator = mdates.DayLocator()
+        minor_locator = mdates.HourLocator(interval=6)
+    elif range_days < 30:
+        major_locator = mdates.DayLocator([1, 5, 10, 15, 20, 25])
+        minor_locator = mdates.DayLocator()
+    elif range_days < 80:
+        major_locator = mdates.DayLocator([1, 10, 20])
+        minor_locator = mdates.DayLocator()
+    elif range_days < 200:
+        major_locator = mdates.DayLocator([1, 15])
+        minor_locator = mdates.DayLocator()
+    elif range_days < 370:
+        major_locator = mdates.MonthLocator()
+        minor_locator = mdates.DayLocator([1, 5, 10, 15, 20, 25])
+    else:
+        major_locator = mdates.AutoDateLocator(minticks=7, maxticks=16,
+                                               interval_multiples=False)
+        minor_locator = mdates.MonthLocator(bymonthday=[1, 15], interval=1)
+
+    ax.xaxis.set_major_locator(major_locator)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    ax.xaxis.set_minor_locator(minor_locator)
+    ax.tick_params(axis='x', which='major', length=7)
+
+    ax.grid(which='major', linewidth=0.7, color='0.7')
+    ax.grid(which='minor', linestyle='dashed', linewidth=0.3, color='0.7')
+
+    ax.autoscale(enable=True, axis='x', tight=True)
+
+    # loc = matplotlib.dates.AutoDateLocator()
+    # fmt = matplotlib.dates.AutoDateFormatter(loc)
+    # ax.xaxis.set_major_locator(loc)
+    # ax.xaxis.set_major_formatter(fmt)
+    # ax.autoscale(enable=True, axis='x', tight=True)
+    fig.autofmt_xdate()
+
     depth_coord = _cube.coord('depth')
     ylabel = '{:} [{:}]'.format(depth_coord.name().capitalize(),
                                 depth_coord.units)
@@ -119,8 +157,7 @@ def plot_timeprofile(cube, ax, title=None,
         title = ' '.join([loc, data_id])
         ax.set_title(title)
     ax.set_ylabel(ylabel)
-    ax.autoscale(enable=True, axis='x', tight=True)
-    fig.autofmt_xdate()
+
     if colorbar:
         # create colorbar
         pad = 0.015

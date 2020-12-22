@@ -81,17 +81,21 @@ def plot_timeseries(ax, cube_list, label_attr='dataset_id', time_lim=None,
     elif range_days < 80:
         major_locator = mdates.DayLocator([1, 10, 20])
         minor_locator = mdates.DayLocator()
+    elif range_days < 200:
+        major_locator = mdates.DayLocator([1, 15])
+        minor_locator = mdates.DayLocator()
     elif range_days < 370:
         major_locator = mdates.MonthLocator()
         minor_locator = mdates.DayLocator([1, 5, 10, 15, 20, 25])
     else:
-        major_locator = mdates.AutoDateLocator(minticks=7, maxticks=12,
+        major_locator = mdates.AutoDateLocator(minticks=7, maxticks=16,
                                                interval_multiples=False)
-        minor_locator = mdates.DayLocator([1, 15])
+        minor_locator = mdates.MonthLocator(bymonthday=[1, 15], interval=1)
 
     ax.xaxis.set_major_locator(major_locator)
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     ax.xaxis.set_minor_locator(minor_locator)
+    ax.tick_params(axis='x', which='major', length=7)
 
     ax.grid(which='major', linewidth=0.7, color='0.7')
     ax.grid(which='minor', linestyle='dashed', linewidth=0.3, color='0.7')
